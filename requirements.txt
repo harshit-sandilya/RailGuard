@@ -1,0 +1,4 @@
+numpy==2.2.2
+pydantic==2.10.6
+tqdm==4.67.1
+typing_extensions==4.12.2

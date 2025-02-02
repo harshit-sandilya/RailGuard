@@ -1,8 +1,8 @@
+import json
 import math
 import random
 from random import choice
 from string import ascii_uppercase
-import json
 
 NUM_STATIONS = 5
 NUM_TRAINS = 10
@@ -156,12 +156,12 @@ for i, train in enumerate(trains):
         if j == 0:
             hour = random.randint(0, day_hours)
             minute = random.randint(0, 59)
-            train_schedule["arrival"] = "00:00:00"
-            station_schedule["arrival"] = "00:00:00"
             train_schedule["arrival_day"] = 0
             station_schedule["arrival_day"] = 0
             train_schedule["departure"] = f"{hour}:{minute}:00"
             station_schedule["departure"] = f"{hour}:{minute}:00"
+            train_schedule["arrival"] = f"{hour}:{minute}:00"
+            station_schedule["arrival"] = f"{hour}:{minute}:00"
             train_schedule["departure_day"] = day
             station_schedule["departure_day"] = day
         else:

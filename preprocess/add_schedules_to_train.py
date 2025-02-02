@@ -1,4 +1,5 @@
 import json
+
 from tqdm import tqdm
 
 trains = json.load(open("data/trains.json"))
