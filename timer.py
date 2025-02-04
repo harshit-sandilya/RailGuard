@@ -3,6 +3,7 @@ import time
 
 from schema.timer import TimerFormat
 
+TIME_SECOND = 1/20
 
 class ResettableTimer(threading.Thread):
     def __init__(self, max_time):
@@ -25,7 +26,7 @@ class ResettableTimer(threading.Thread):
         """Function that runs in the thread to keep track of time."""
         self.running = True
         while self.running:
-            time.sleep(1)
+            time.sleep(TIME_SECOND)
             with self.lock:
                 self.elapsed_time += 1
                 print(f"Time passed: {self.get_human_format()}")

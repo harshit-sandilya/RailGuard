@@ -129,6 +129,7 @@ def get_coords_of_trains(
             curr_coords = to_coords
             from_index[index] = to_index[index]
             to_index[index] = (to_index[index] + 1) % len(train["coordinates"])
+        # print("Current Coords: ",curr_coords)
         return TrainCoords(
             number=train["train_no"],
             speed=speed,
