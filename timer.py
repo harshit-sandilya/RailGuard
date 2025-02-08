@@ -3,7 +3,8 @@ import time
 
 from schema.timer import TimerFormat
 
-TIME_SECOND = 1/20
+TIME_SECOND = 1 / 20
+
 
 class ResettableTimer(threading.Thread):
     def __init__(self, max_time):

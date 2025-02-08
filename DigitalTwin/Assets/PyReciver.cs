@@ -57,6 +57,7 @@ public class PyReceiver : MonoBehaviour
                         InitialData initialData = JsonUtility.FromJson<InitialData>(jsonString);
                         if (initialData != null && initialData.stations.Count > 0)
                         {
+                            Debug.Log("Spawning Stations");
                             mainThreadActions.Enqueue(() => SpawnStationsAndSendReady(initialData, stream));
                         }
                         else
@@ -120,7 +121,8 @@ public class PyReceiver : MonoBehaviour
     }
 
     void SpawnStationsAndSendReady(InitialData data, NetworkStream stream)
-    {
+    {   
+        List<GameObject> stationObjects = new List<GameObject>();
         foreach (Station station in data.stations)
         {
             GameObject stationObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -134,10 +136,47 @@ public class PyReceiver : MonoBehaviour
             {
                 renderer.material.color = Color.red;
             }
+
+            stationObjects.Add(stationObj);
+        }
+
+        for (int i = 0; i < stationObjects.Count - 1; i++)
+        {
+            Vector3 start = stationObjects[i].transform.position;
+            Vector3 end = stationObjects[i + 1].transform.position;
+            SpawnTrack(start, end);
+        }
+
+        if (stationObjects.Count > 1)
+        {
+            Vector3 first = stationObjects[0].transform.position;
+            Vector3 last = stationObjects[stationObjects.Count - 1].transform.position;
+            SpawnTrack(last, first);
         }
 
         SendResponse(stream, "READY");
         Debug.Log("Stations spawned. Sent readiness signal.");
+    }
+
+    void SpawnTrack(Vector3 start, Vector3 end)
+    {
+        Vector3 midPoint = (start + end) / 2;
+        float distance = Vector3.Distance(start, end);
+
+        GameObject track = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        track.transform.position = new Vector3(midPoint.x, -0.01f, midPoint.z);
+        track.transform.localScale = new Vector3(distance, 0.01f, 0.1f);
+        
+        float angle = Mathf.Atan2(end.z - start.z, end.x - start.x) * Mathf.Rad2Deg;
+        track.transform.rotation = Quaternion.Euler(0, -angle, 0);
+
+        track.name = "Track";
+        
+        // Renderer renderer = track.GetComponent<Renderer>();
+        // if (renderer != null)
+        // {
+        //     renderer.material.color = Color.gray;
+        // }
     }
 
     void UpdateTrainPosition(TrainCoords train)
@@ -152,7 +191,7 @@ public class PyReceiver : MonoBehaviour
         {
             GameObject newTrain = GameObject.CreatePrimitive(PrimitiveType.Cube);
             newTrain.transform.position = new Vector3(train.current_coords[0], 0, train.current_coords[1]);
-            newTrain.transform.rotation = Quaternion.Euler(0, train.rotation, 0);
+            newTrain.transform.rotation = Quaternion.Euler(0, train.rotation-90, 0);
             newTrain.transform.localScale = new Vector3(0.1f, 0.1f, 0.3f);
             newTrain.name = "Train_" + train.number;
             activeTrains[train.number] = newTrain;

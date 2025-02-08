@@ -4,7 +4,7 @@ import random
 from random import choice
 from string import ascii_uppercase
 
-NUM_STATIONS = 2
+NUM_STATIONS = 3
 NUM_TRAINS = 1
 frac_combinations = 0.75
 day_hours = 4
