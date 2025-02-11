@@ -9,6 +9,9 @@ from train_position_getter import get_coords_of_trains
 
 TIMER = ResettableTimer(max_time=(5 * 60 * 60 - 1))
 
+udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+socket_lock = threading.Lock()
+
 
 class TrainSocket(threading.Thread):
     def __init__(self, train, host="127.0.0.1", port=8081):
@@ -39,39 +42,44 @@ class TrainSocket(threading.Thread):
             seconds=largest_time.split(":")[2],
         )
 
-        print(f"Train: {train['train_no']} connects to {host} and port {port}")
+        print(f"Train {train['train_no']} initialized.")
 
-    def send_update(self, client_socket, train_coords: TrainCoords):
+    def send_update(self, train_coords: TrainCoords):
         data = train_coords.model_dump_json()
 
-        try:
-            client_socket.sendto(data.encode("utf-8"), (self.host, self.port))
-            print(f"Sent: Train {self.train['train_no']} at {train_coords}")
-        except socket.error as e:
-            print(f"[ERROR] Could not send data: {e}")
-            time.sleep(TIME_SECOND / 4)
+        while self.running:
+            if socket_lock.acquire(blocking=False):
+                try:
+                    udp_socket.sendto(data.encode("utf-8"), (self.host, self.port))
+                    print(f"Sent: Train {self.train['train_no']} at {train_coords}")
+                    break
+                except socket.error as e:
+                    print(f"[ERROR] Could not send data: {e}")
+                finally:
+                    socket_lock.release()
+            else:
+                time.sleep(TIME_SECOND / 4)
 
     def run(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as client_socket:
-            print(f"Train {self.train['train_no']} socket ready.")
+        print(f"Train {self.train['train_no']} thread started.")
 
-            while self.running:
-                current_time = TIMER.get_time()
-                train_coords = get_coords_of_trains(
-                    current_time,
-                    self.train,
-                    self.from_index,
-                    self.to_index,
-                    self.smallest,
-                    self.largest,
-                )
+        while self.running:
+            current_time = TIMER.get_time()
+            train_coords = get_coords_of_trains(
+                current_time,
+                self.train,
+                self.from_index,
+                self.to_index,
+                self.smallest,
+                self.largest,
+            )
 
-                if train_coords:
-                    self.send_update(client_socket, train_coords)
+            if train_coords:
+                self.send_update(train_coords)
 
-                time.sleep(TIME_SECOND)
+            time.sleep(TIME_SECOND)
 
-            print(f"Train {self.train['train_no']} disconnected")
+        print(f"Train {self.train['train_no']} thread stopped.")
 
     def stop(self):
         self.running = False

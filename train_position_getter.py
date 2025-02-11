@@ -7,6 +7,7 @@ from utils import angle_between_lines
 
 day_hours = 5
 
+
 def find_distance(coords1: List[int], coords2: List[int]) -> float:
     return ((coords1[0] - coords2[0]) ** 2 + (coords1[1] - coords2[1]) ** 2) ** 0.5
 

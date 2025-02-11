@@ -45,7 +45,7 @@ def main():
         sockets = [TrainSocket(train) for train in train_data]
 
         for sock in sockets:
-            sock.run()
+            sock.start()
 
         try:
             while True:
@@ -54,6 +54,10 @@ def main():
             print("Stopping all train sockets...")
             for sock in sockets:
                 sock.stop()
+
+            # Wait for all threads to finish
+            for sock in sockets:
+                sock.join()
 
             TIMER.stop()
             TIMER.join()

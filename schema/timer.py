@@ -8,7 +8,17 @@ class TimerFormat(BaseModel):
     seconds: int
 
     def __lt__(self, other):
-        return (self.day, self.hours, self.minutes, self.seconds) < (other.day, other.hours, other.minutes, other.seconds)
+        return (self.day, self.hours, self.minutes, self.seconds) < (
+            other.day,
+            other.hours,
+            other.minutes,
+            other.seconds,
+        )
 
     def __gt__(self, other):
-        return (self.day, self.hours, self.minutes, self.seconds) > (other.day, other.hours, other.minutes, other.seconds)
+        return (self.day, self.hours, self.minutes, self.seconds) > (
+            other.day,
+            other.hours,
+            other.minutes,
+            other.seconds,
+        )
