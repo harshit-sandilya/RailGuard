@@ -1,7 +1,7 @@
 import json
 
 from schema import InitialData
-from schema.initial import Station
+from schema.initial import Station, Track
 from utils.angle_between_lines import angle_between_lines
 
 
@@ -12,6 +12,8 @@ def mean(arr):
 def get_initial_data() -> InitialData:
     with open("data/generated_stations.json") as f:
         stations = json.load(f)
+    with open("data/generated_tracks.json") as f:
+        tracks = json.load(f)
     data = []
     for station in stations:
         data.append({"name": station["station"], "coords": station["coordinates"]})
@@ -24,4 +26,7 @@ def get_initial_data() -> InitialData:
             center, entry["coords"], entry["coords"], (center[0], entry["coords"][1])
         )
     stations = [Station(**entry) for entry in data]
-    return InitialData(stations=stations)
+    tracks = [Track(**entry) for entry in tracks]
+    data = InitialData(stations=stations, tracks=tracks)
+    print("Initial data loaded",data.tracks)
+    return data

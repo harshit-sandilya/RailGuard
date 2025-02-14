@@ -4,8 +4,7 @@ from typing_extensions import Optional
 
 from schema import TimerFormat, TrainCoords
 from utils import angle_between_lines
-
-day_hours = 5
+from constants import DAY_HOURS as day_hours
 
 
 def find_distance(coords1: List[int], coords2: List[int]) -> float:
@@ -34,56 +33,6 @@ def find_time_diff_with_obj(time1: TimerFormat, time2: str, day1, day2) -> float
         + (seconds1 - seconds2)
     ) / 3600
     return diff
-
-
-# def compare_time_greater(time1: TimerFormat, time2: TimerFormat) -> bool:
-#     if (
-#         time1.day > time2.day
-#         or (time1.day == time2.day and time1.hours > time2.hours)
-#         or (
-#             time1.day == time2.day
-#             and time1.hours == time2.hours
-#             and time1.minutes > time2.minutes
-#         )
-#         or (
-#             time1.day == time2.day
-#             and time1.hours == time2.hours
-#             and time1.minutes == time2.minutes
-#             and time1.seconds > time2.seconds
-#         )
-#     ):
-#         return True
-#     return False
-
-
-# def compare_time_smaller(time1: TimerFormat, time2: TimerFormat) -> bool:
-#     if (
-#         time1.day < time2.day
-#         or (time1.day == time2.day and time1.hours < time2.hours)
-#         or (
-#             time1.day == time2.day
-#             and time1.hours == time2.hours
-#             and time1.minutes < time2.minutes
-#         )
-#         or (
-#             time1.day == time2.day
-#             and time1.hours == time2.hours
-#             and time1.minutes == time2.minutes
-#             and time1.seconds < time2.seconds
-#         )
-#     ):
-#         return True
-#     return False
-
-
-# def train_is_on_map(
-#     smallest: TimerFormat, largest: TimerFormat, curr_time: TimerFormat
-# ) -> bool:
-#     if compare_time_greater(curr_time, smallest) and compare_time_smaller(
-#         curr_time, largest
-#     ):
-#         return True
-#     return False
 
 
 def get_coords_of_trains(

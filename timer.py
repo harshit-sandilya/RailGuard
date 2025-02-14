@@ -3,7 +3,7 @@ import time
 
 from schema.timer import TimerFormat
 
-TIME_SECOND = 1 / 20
+from constants import TIME_SECOND
 
 
 class ResettableTimer(threading.Thread):

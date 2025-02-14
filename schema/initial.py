@@ -7,6 +7,10 @@ class Station(BaseModel):
     coords: List[float]
     rotation: float
 
+class Track(BaseModel):
+    start: List[float]
+    end: List[float]
 
 class InitialData(BaseModel):
     stations: List[Station]
+    tracks: List[Track]

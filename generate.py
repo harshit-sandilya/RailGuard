@@ -3,11 +3,7 @@ import math
 import random
 from random import choice
 from string import ascii_uppercase
-
-NUM_STATIONS = 3
-NUM_TRAINS = 2
-frac_combinations = 0.75
-day_hours = 4
+from constants import NUM_STATIONS, NUM_TRAINS, FRAC_COMBINATIONS as frac_combinations, DAY_HOURS as day_hours
 
 station_schedules = {
     "train_no": 0,
@@ -154,7 +150,7 @@ for i, train in enumerate(trains):
         station_schedule["avg_speed"] = train["avg_speed"]
 
         if j == 0:
-            hour = random.randint(0, day_hours)
+            hour = random.randint(0, day_hours-1)
             minute = random.randint(0, 59)
             train_schedule["arrival_day"] = 0
             station_schedule["arrival_day"] = 0

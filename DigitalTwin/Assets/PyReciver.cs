@@ -140,25 +140,19 @@ public class PyReceiver : MonoBehaviour
             stationObjects.Add(stationObj);
         }
 
-        for (int i = 0; i < stationObjects.Count - 1; i++)
+        for (int i = 0; i < data.tracks.Count; i++)
         {
-            Vector3 start = stationObjects[i].transform.position;
-            Vector3 end = stationObjects[i + 1].transform.position;
-            SpawnTrack(start, end);
-        }
-
-        if (stationObjects.Count > 1)
-        {
-            Vector3 first = stationObjects[0].transform.position;
-            Vector3 last = stationObjects[stationObjects.Count - 1].transform.position;
-            SpawnTrack(last, first);
+            Track track = data.tracks[i];
+            Vector3 start = new Vector3(track.start[0], 0, track.start[1]);
+            Vector3 end = new Vector3(track.end[0], 0, track.end[1]);
+            SpawnTrack(start, end, i);
         }
 
         SendResponse(stream, "READY");
         Debug.Log("Stations spawned. Sent readiness signal.");
     }
 
-    void SpawnTrack(Vector3 start, Vector3 end)
+    void SpawnTrack(Vector3 start, Vector3 end, int i)
     {
         Vector3 midPoint = (start + end) / 2;
         float distance = Vector3.Distance(start, end);
@@ -170,7 +164,22 @@ public class PyReceiver : MonoBehaviour
         float angle = Mathf.Atan2(end.z - start.z, end.x - start.x) * Mathf.Rad2Deg;
         track.transform.rotation = Quaternion.Euler(0, -angle, 0);
 
-        track.name = "Track";
+        track.name = "Track_" + i;
+
+        // Add a BoxCollider to act as boundaries for the train
+        BoxCollider trackCollider = track.AddComponent<BoxCollider>();
+        trackCollider.size = new Vector3(distance, 1f, 0.4f);
+        trackCollider.isTrigger = false;
+
+        // Add Rigidbody for physics interaction if needed
+        Rigidbody rb = track.AddComponent<Rigidbody>();
+        rb.isKinematic = true;
+
+        // Apply friction from Constants
+        PhysicsMaterial trackMaterial = new PhysicsMaterial();
+        trackMaterial.dynamicFriction = Constants.TRAIN_TRACK_COEFFICIENT;
+        trackMaterial.staticFriction = Constants.TRAIN_TRACK_COEFFICIENT;
+        trackCollider.material = trackMaterial;
     }
 
     void UpdateTrainPosition(TrainCoords train)
@@ -195,6 +204,8 @@ public class PyReceiver : MonoBehaviour
             {
                 renderer.material.color = Color.blue;
             }
+
+            newTrain.AddComponent<TrainController>();
         }
     }
 
@@ -217,6 +228,14 @@ public class PyReceiver : MonoBehaviour
 public class InitialData
 {
     public List<Station> stations;
+    public List<Track> tracks;
+}
+
+[Serializable]
+public class Track
+{
+    public List<float> start;
+    public List<float> end;
 }
 
 [Serializable]

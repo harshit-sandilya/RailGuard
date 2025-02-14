@@ -3,7 +3,7 @@ import socket
 import time
 
 from get_initial_data import get_initial_data
-from timer import TIME_SECOND
+from constants import TIME_SECOND
 from trains_socket import TIMER, TrainSocket
 
 HOST = "127.0.0.1"
@@ -39,7 +39,8 @@ def send_initial_data():
 
 
 def main():
-    train_data = json.load(open("data/generated_trains.json"))
+    with open("data/generated_trains.json", "r") as file:
+            train_data = json.load(file)
     if send_initial_data():
         TIMER.start()
         sockets = [TrainSocket(train) for train in train_data]
@@ -55,7 +56,6 @@ def main():
             for sock in sockets:
                 sock.stop()
 
-            # Wait for all threads to finish
             for sock in sockets:
                 sock.join()
 

@@ -4,10 +4,11 @@ import time
 
 from schema import TrainCoords
 from schema.timer import TimerFormat
-from timer import TIME_SECOND, ResettableTimer
+from timer import ResettableTimer
 from train_position_getter import get_coords_of_trains
+from constants import TIME_SECOND, DAY_HOURS
 
-TIMER = ResettableTimer(max_time=(5 * 60 * 60 - 1))
+TIMER = ResettableTimer(max_time=(DAY_HOURS * 60 * 60 - 1))
 
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 socket_lock = threading.Lock()
