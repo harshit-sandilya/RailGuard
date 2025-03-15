@@ -1,0 +1,94 @@
+[
+  {
+    "train_no": 18247,
+    "train_name": "THTPBXRMWDRHXZ",
+    "type": "NZZGI",
+    "avg_speed": 80,
+    "schedules": [
+      {
+        "station": "RNITZVH",
+        "station_code": "RNI",
+        "arrival_day": 0,
+        "departure_day": 0,
+        "arrival": "0:20:00",
+        "departure": "0:20:00"
+      },
+      {
+        "station": "LHMYZ",
+        "station_code": "LHM",
+        "arrival_day": 0,
+        "departure_day": 0,
+        "arrival": "0:39:00",
+        "departure": "0:42:00"
+      },
+      {
+        "station": "HIRQWKZDA",
+        "station_code": "HIR",
+        "arrival_day": 0,
+        "departure_day": 0,
+        "arrival": "1:12:00",
+        "departure": "1:14:00"
+      }
+    ],
+    "coordinates": [
+      [
+        0,
+        10
+      ],
+      [
+        7,
+        38
+      ],
+      [
+        16,
+        74
+      ]
+    ]
+  },
+  {
+    "train_no": 94287,
+    "train_name": "WYTKRYCDAPGLYZRUOI",
+    "type": "MSTKL",
+    "avg_speed": 73,
+    "schedules": [
+      {
+        "station": "RNITZVH",
+        "station_code": "RNI",
+        "arrival_day": 0,
+        "departure_day": 0,
+        "arrival": "0:10:00",
+        "departure": "0:10:00"
+      },
+      {
+        "station": "LHMYZ",
+        "station_code": "LHM",
+        "arrival_day": 0,
+        "departure_day": 0,
+        "arrival": "0:40:00",
+        "departure": "0:44:00"
+      },
+      {
+        "station": "HIRQWKZDA",
+        "station_code": "HIR",
+        "arrival_day": 0,
+        "departure_day": 0,
+        "arrival": "1:08:00",
+        "departure": "1:10:00"
+      }
+    ],
+    "coordinates": [
+      [
+        0,
+        10
+      ],
+      [
+        7,
+        38
+      ],
+      [
+        16,
+        74
+      ]
+    ]
+  }
+]

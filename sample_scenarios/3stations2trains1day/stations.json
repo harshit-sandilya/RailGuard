@@ -1,0 +1,95 @@
+[
+  {
+    "station": "RNITZVH",
+    "station_code": "RNI",
+    "state": "GFHRAHXTVUD",
+    "schedules": [
+      {
+        "train_no": 18247,
+        "train_name": "THTPBXRMWDRHXZ",
+        "type": "NZZGI",
+        "avg_speed": 80,
+        "arrival": "0:20:00",
+        "departure": "0:20:00",
+        "arrival_day": 0,
+        "departure_day": 0
+      },
+      {
+        "train_no": 94287,
+        "train_name": "WYTKRYCDAPGLYZRUOI",
+        "type": "MSTKL",
+        "avg_speed": 73,
+        "arrival": "0:10:00",
+        "departure": "0:10:00",
+        "arrival_day": 0,
+        "departure_day": 0
+      }
+    ],
+    "coordinates": [
+      0,
+      10
+    ]
+  },
+  {
+    "station": "LHMYZ",
+    "station_code": "LHM",
+    "state": "DSUZTSMGRHW",
+    "schedules": [
+      {
+        "train_no": 18247,
+        "train_name": "THTPBXRMWDRHXZ",
+        "type": "NZZGI",
+        "avg_speed": 80,
+        "arrival": "0:39:00",
+        "departure": "0:42:00",
+        "arrival_day": 0,
+        "departure_day": 0
+      },
+      {
+        "train_no": 94287,
+        "train_name": "WYTKRYCDAPGLYZRUOI",
+        "type": "MSTKL",
+        "avg_speed": 73,
+        "arrival": "0:40:00",
+        "departure": "0:44:00",
+        "arrival_day": 0,
+        "departure_day": 0
+      }
+    ],
+    "coordinates": [
+      7,
+      38
+    ]
+  },
+  {
+    "station": "HIRQWKZDA",
+    "station_code": "HIR",
+    "state": "DMDVUWZCQYW",
+    "schedules": [
+      {
+        "train_no": 18247,
+        "train_name": "THTPBXRMWDRHXZ",
+        "type": "NZZGI",
+        "avg_speed": 80,
+        "arrival": "1:12:00",
+        "departure": "1:14:00",
+        "arrival_day": 0,
+        "departure_day": 0
+      },
+      {
+        "train_no": 94287,
+        "train_name": "WYTKRYCDAPGLYZRUOI",
+        "type": "MSTKL",
+        "avg_speed": 73,
+        "arrival": "1:08:00",
+        "departure": "1:10:00",
+        "arrival_day": 0,
+        "departure_day": 0
+      }
+    ],
+    "coordinates": [
+      16,
+      74
+    ]
+  }
+]

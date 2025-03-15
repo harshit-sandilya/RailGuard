@@ -1,10 +1,10 @@
 import socket
 import threading
+import json
 
 # Server configuration
 TCP_HOST = "localhost"
 TCP_PORT = 8080
-UDP_PORT = 8081
 
 
 def start_tcp_server():
@@ -34,8 +34,20 @@ def start_tcp_server():
                             print(decoded_data)
                             print("==============================\n")
 
-                            conn.sendall(b"READY")
-                            print("[TCP] [+] Sent 'READY' to sender.")
+                            # Parse JSON data to get the number of trains
+                            try:
+                                json_data = json.loads(decoded_data)
+                                train_count = json_data.get("trains", 0)
+                                print(f"[TCP] [+] Number of trains: {train_count}")
+
+                                conn.sendall(b"READY")
+                                print("[TCP] [+] Sent 'READY' to sender.")
+
+                                # Start UDP servers dynamically based on train_count
+                                start_udp_servers(train_count)
+
+                            except json.JSONDecodeError as e:
+                                print(f"[TCP] [!] JSON decode error: {e}")
 
                         except Exception as e:
                             print(f"[TCP] [!] Error while receiving data: {e}")
@@ -45,34 +57,46 @@ def start_tcp_server():
             print("\n[TCP] [!] Server stopped manually.")
 
 
-def start_udp_server():
+def start_udp_server(udp_port):
     """Handles the UDP connection for continuously receiving TrainCoords data."""
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
-        udp_socket.bind((TCP_HOST, UDP_PORT))
-        print(f"[UDP] Listening on {TCP_HOST}:{UDP_PORT}...\n")
+        udp_socket.bind((TCP_HOST, udp_port))
+        print(f"[UDP] Listening on {TCP_HOST}:{udp_port}...\n")
 
         try:
             while True:
                 data, addr = udp_socket.recvfrom(4096)
                 decoded_data = data.decode("utf-8").strip()
                 print("\n==============================")
-                print(f"[UDP] [Received from {addr}]")
+                print(f"[UDP Port {udp_port}] [Received from {addr}]")
                 print(decoded_data)
                 print("==============================\n")
 
         except KeyboardInterrupt:
-            print("\n[UDP] [!] Server stopped manually.")
+            print(f"\n[UDP Port {udp_port}] [!] Server stopped manually.")
+
+
+def start_udp_servers(train_count):
+    """Starts multiple UDP servers dynamically based on the number of trains."""
+    udp_threads = []
+    for i in range(train_count):
+        udp_port = 8081 + i
+        udp_thread = threading.Thread(target=start_udp_server, args=(udp_port,), daemon=True)
+        udp_threads.append(udp_thread)
+        udp_thread.start()
+        print(f"[Main] [+] Started UDP server on port {udp_port}")
+
+    # Let all threads run in the background
+    for t in udp_threads:
+        t.join()
 
 
 if __name__ == "__main__":
     tcp_thread = threading.Thread(target=start_tcp_server, daemon=True)
-    udp_thread = threading.Thread(target=start_udp_server, daemon=True)
-
     tcp_thread.start()
-    udp_thread.start()
 
     try:
         while True:
             pass
     except KeyboardInterrupt:
-        print("\n[Main] [!] Stopping both servers...")
+        print("\n[Main] [!] Stopping all servers...")

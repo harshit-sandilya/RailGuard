@@ -1,0 +1,36 @@
+[
+  {
+    "train_no": 12245,
+    "train_name": "ZXCVBNMASDFGHJ",
+    "type": "NZZGI",
+    "avg_speed": 81,
+    "schedules": [
+      {
+        "station": "QWERTYU",
+        "station_code": "QWE",
+        "arrival_day": 0,
+        "departure_day": 0,
+        "arrival": "0:5:00",
+        "departure": "0:5:00"
+      },
+      {
+        "station": "POIUYT",
+        "station_code": "POI",
+        "arrival_day": 0,
+        "departure_day": 0,
+        "arrival": "0:26:00",
+        "departure": "0:29:00"
+      }
+    ],
+    "coordinates": [
+      [
+        0,
+        14
+      ],
+      [
+        9,
+        41
+      ]
+    ]
+  }
+]

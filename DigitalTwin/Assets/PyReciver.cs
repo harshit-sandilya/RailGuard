@@ -11,20 +11,17 @@ public class PyReceiver : MonoBehaviour
     private const int TCP_PORT = 8080;
     private const int UDP_PORT = 8081;
     private TcpListener tcpServer;
-    private UdpClient udpClient;
+    private List<UdpClient> udpClients = new List<UdpClient>();
     private bool isRunning = true;
     private Queue<Action> mainThreadActions = new Queue<Action>();
     private Dictionary<int, GameObject> activeTrains = new Dictionary<int, GameObject>();
+    public int no_trains;
 
     void Start()
     {
         Thread tcpThread = new Thread(StartTCPServer);
         tcpThread.IsBackground = true;
         tcpThread.Start();
-
-        Thread udpThread = new Thread(StartUDPServer);
-        udpThread.IsBackground = true;
-        udpThread.Start();
     }
 
     void Update()
@@ -78,31 +75,31 @@ public class PyReceiver : MonoBehaviour
         }
     }
 
-    void StartUDPServer()
+    void StartUDPServer(int port)
     {
         try
         {
-            udpClient = new UdpClient(UDP_PORT);
-            IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, UDP_PORT);
-            Debug.Log("UDP Server started, listening for TrainCoords...");
+            UdpClient udpClient = new UdpClient(port);
+            udpClients.Add(udpClient);
+            IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, port);
+            Debug.Log($"UDP Server started on port {port}, listening for TrainData...");
 
             while (isRunning)
             {
                 byte[] data = udpClient.Receive(ref remoteEndPoint);
                 string jsonString = Encoding.UTF8.GetString(data);
-                Debug.Log("Data Recieved:" + jsonString);
 
                 try
                 {
-                    TrainCoords trainCoords = JsonUtility.FromJson<TrainCoords>(jsonString);
-                    if (trainCoords != null)
+                    TrainData trainData = JsonUtility.FromJson<TrainData>(jsonString);
+                    if (trainData != null)
                     {
-                        mainThreadActions.Enqueue(() => UpdateTrainPosition(trainCoords));
+                        mainThreadActions.Enqueue(() => SpawnTrains(trainData, udpClient, remoteEndPoint));
                     }
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogError("Error parsing TrainCoords JSON: " + ex.Message);
+                    Debug.LogError("Error parsing TrainData JSON: " + ex.Message);
                 }
             }
         }
@@ -120,15 +117,22 @@ public class PyReceiver : MonoBehaviour
         return Encoding.UTF8.GetString(buffer, 0, bytesRead);
     }
 
+    void SendResponse(NetworkStream stream, string message)
+    {
+        byte[] responseBytes = Encoding.UTF8.GetBytes(message + "\n");
+        stream.Write(responseBytes, 0, responseBytes.Length);
+        stream.Flush();
+    }
+
     void SpawnStationsAndSendReady(InitialData data, NetworkStream stream)
     {
         List<GameObject> stationObjects = new List<GameObject>();
         foreach (Station station in data.stations)
         {
             GameObject stationObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            stationObj.transform.position = new Vector3(station.coords[0], 0, station.coords[1]);
-            stationObj.transform.rotation = Quaternion.Euler(0, station.rotation, 0);
-            stationObj.transform.localScale = new Vector3(1, 1, 1);
+            stationObj.transform.position = new Vector3(station.coords[0]*1000 - 125, 0, station.coords[1]*1000 + 125);
+            stationObj.transform.rotation = Quaternion.Euler(0, station.rotation - 90, 0);
+            stationObj.transform.localScale = new Vector3(200, 100, 500);
             stationObj.name = station.name;
 
             Renderer renderer = stationObj.GetComponent<Renderer>();
@@ -138,97 +142,129 @@ public class PyReceiver : MonoBehaviour
             }
 
             stationObjects.Add(stationObj);
+
+            Destroy(stationObj.GetComponent<Collider>());
         }
 
         for (int i = 0; i < data.tracks.Count; i++)
         {
             Track track = data.tracks[i];
-            Vector3 start = new Vector3(track.start[0], 0, track.start[1]);
-            Vector3 end = new Vector3(track.end[0], 0, track.end[1]);
+            Vector3 start = new Vector3(track.start[0]*1000, 0, track.start[1]*1000);
+            Vector3 end = new Vector3(track.end[0]*1000, 0, track.end[1]*1000);
             SpawnTrack(start, end, i);
+        }
+
+        no_trains = data.trains;
+
+        for (int i = 0; i < no_trains; i++)
+        {
+            int port = 8081 + i;
+            Thread udpThread = new Thread(() => StartUDPServer(port));
+            udpThread.IsBackground = true;
+            udpThread.Start();
         }
 
         SendResponse(stream, "READY");
         Debug.Log("Stations spawned. Sent readiness signal.");
+
+        Timer.StartRunning();
+        Debug.Log("ResettableTimer started after READY signal.");
     }
 
     void SpawnTrack(Vector3 start, Vector3 end, int i)
     {
         Vector3 midPoint = (start + end) / 2;
-        float distance = Vector3.Distance(start, end);
+        float distance = Vector3.Distance(start, end) + Constants.TRAIN_LENGTH;
 
         GameObject track = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        track.transform.position = new Vector3(midPoint.x, -0.01f, midPoint.z);
-        track.transform.localScale = new Vector3(distance, 0.01f, 0.1f);
+        track.transform.position = new Vector3(midPoint.x, -1f, midPoint.z);
+        track.transform.localScale = new Vector3(distance, 1f, 100f);
 
         float angle = Mathf.Atan2(end.z - start.z, end.x - start.x) * Mathf.Rad2Deg;
         track.transform.rotation = Quaternion.Euler(0, -angle, 0);
 
         track.name = "Track_" + i;
 
-        // Add a BoxCollider to act as boundaries for the train
-        BoxCollider trackCollider = track.AddComponent<BoxCollider>();
-        trackCollider.size = new Vector3(distance, 1f, 0.4f);
+        BoxCollider trackCollider = track.GetComponent<BoxCollider>();
         trackCollider.isTrigger = false;
 
-        // Add Rigidbody for physics interaction if needed
         Rigidbody rb = track.AddComponent<Rigidbody>();
         rb.isKinematic = true;
+        rb.constraints = RigidbodyConstraints.FreezeAll;
 
-        // Apply friction from Constants
         PhysicsMaterial trackMaterial = new PhysicsMaterial();
         trackMaterial.dynamicFriction = Constants.TRAIN_TRACK_COEFFICIENT;
         trackMaterial.staticFriction = Constants.TRAIN_TRACK_COEFFICIENT;
+        trackMaterial.frictionCombine = PhysicsMaterialCombine.Maximum;
         trackCollider.material = trackMaterial;
     }
 
-    void UpdateTrainPosition(TrainCoords train)
+    void SpawnTrains(TrainData train, UdpClient udpClient, IPEndPoint remoteEndpoint)
     {
-        if (activeTrains.ContainsKey(train.number))
+        Debug.Log($"Train received: {train.number}");
+        Vector3 start = new Vector3(train.start_coords[0]*1000, 0, train.start_coords[1]*1000);
+        Vector3 end = new Vector3(train.end_coords[0]*1000, 0, train.end_coords[1]*1000);
+        Vector3 direction = (end - start).normalized;
+        float angle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
+
+        GameObject newTrain = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        newTrain.transform.position = new Vector3(train.start_coords[0]*1000, Constants.TRAIN_HEIGHT / 2 + 1, train.start_coords[1]*1000);
+        newTrain.transform.localScale = new Vector3(Constants.TRAIN_WIDTH, Constants.TRAIN_HEIGHT, Constants.TRAIN_LENGTH);
+        newTrain.transform.rotation = Quaternion.Euler(0, angle, 0);
+
+        newTrain.name = "Train_" + train.number;
+
+        Renderer renderer = newTrain.GetComponent<Renderer>();
+        if (renderer != null)
         {
-            GameObject trainObj = activeTrains[train.number];
-            trainObj.transform.position = new Vector3(train.current_coords[0], 0, train.current_coords[1]);
-            trainObj.transform.rotation = Quaternion.Euler(0, train.rotation-90, 0);
+            renderer.material.color = Color.blue;
         }
-        else
-        {
-            GameObject newTrain = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            newTrain.transform.position = new Vector3(train.current_coords[0], 0, train.current_coords[1]);
-            newTrain.transform.rotation = Quaternion.Euler(0, train.rotation-90, 0);
-            newTrain.transform.localScale = new Vector3(0.1f, 0.1f, 0.3f);
-            newTrain.name = "Train_" + train.number;
-            activeTrains[train.number] = newTrain;
 
-            Renderer renderer = newTrain.GetComponent<Renderer>();
-            if (renderer != null)
-            {
-                renderer.material.color = Color.blue;
-            }
+        BoxCollider collider = newTrain.GetComponent<BoxCollider>();
+        collider.isTrigger = false;
 
-            newTrain.AddComponent<TrainController>();
-        }
-    }
+        PhysicsMaterial trainMaterial = new PhysicsMaterial();
+        trainMaterial.dynamicFriction = Constants.TRAIN_TRACK_COEFFICIENT;
+        trainMaterial.staticFriction = Constants.TRAIN_TRACK_COEFFICIENT;
+        trainMaterial.frictionCombine = PhysicsMaterialCombine.Maximum;
+        trainMaterial.bounciness = 0;
+        collider.material = trainMaterial;
 
-    void SendResponse(NetworkStream stream, string message)
-    {
-        byte[] responseBytes = Encoding.UTF8.GetBytes(message + "\n");
-        stream.Write(responseBytes, 0, responseBytes.Length);
-        stream.Flush();
+        Rigidbody rb = newTrain.AddComponent<Rigidbody>();
+        rb.mass = Constants.TRAIN_MASS;
+        rb.useGravity = true;
+        rb.linearDamping = 0;
+        rb.angularDamping = 0;
+        rb.isKinematic = false;
+
+        TrainController trainController = newTrain.AddComponent<TrainController>();
+        trainController.Initialize(train, udpClient, remoteEndpoint);
+        activeTrains[train.number] = newTrain;
+
+        Debug.Log($"Train created: {train.number}");
     }
 
     void OnApplicationQuit()
     {
         isRunning = false;
         tcpServer?.Stop();
-        udpClient?.Close();
+        foreach (var udpClient in udpClients)
+        {
+            udpClient?.Close();
+        }
+        Timer.StopRunning();
     }
 }
+
 
 [Serializable]
 public class InitialData
 {
     public List<Station> stations;
     public List<Track> tracks;
+    public int trains;
+    public float TIME_SECOND;
+    public int DAY_HOURS;
 }
 
 [Serializable]
@@ -247,10 +283,11 @@ public class Station
 }
 
 [Serializable]
-public class TrainCoords
+public class TrainData
 {
     public int number;
-    public float speed;
-    public List<float> current_coords;
-    public float rotation;
+    public List<float> start_coords;
+    public List<float> end_coords;
+    public float time_allocated;
+    public float halt_time;
 }

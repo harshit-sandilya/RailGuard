@@ -7,10 +7,15 @@ class Station(BaseModel):
     coords: List[float]
     rotation: float
 
+
 class Track(BaseModel):
     start: List[float]
     end: List[float]
 
+
 class InitialData(BaseModel):
     stations: List[Station]
     tracks: List[Track]
+    trains: int
+    TIME_SECOND: float
+    DAY_HOURS: int

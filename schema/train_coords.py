@@ -3,8 +3,9 @@ from typing import List
 from pydantic import BaseModel
 
 
-class TrainCoords(BaseModel):
+class TrainData(BaseModel):
     number: int
-    speed: float
-    current_coords: List[float]
-    rotation: float
+    start_coords: List[float]
+    end_coords: List[float]
+    time_allocated: float
+    halt_time: float
