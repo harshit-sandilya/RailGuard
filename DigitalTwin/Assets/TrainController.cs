@@ -22,6 +22,8 @@ public class TrainController : MonoBehaviour
     private Rigidbody rb;
     private UdpClient udpClient;
     private IPEndPoint remoteEndpoint;
+    private IPEndPoint multicastEndPoint;
+    private int port;
 
     private float maxAcceleration = Constants.TRAIN_MAX_ACCELERATION;
     private float maxSpeed = Constants.TRAIN_MAX_SPEED;
@@ -46,7 +48,7 @@ public class TrainController : MonoBehaviour
     private enum TrainState { Accelerate, Decelerate, Stop }
     private TrainState state;
 
-    public void Initialize(TrainData trainData, UdpClient udpClient, IPEndPoint remoteEndpoint)
+    public void Initialize(TrainData trainData, int port)
     {
         startCoords = new Queue<Vector3>();
         endCoords = new Queue<Vector3>();
@@ -62,12 +64,63 @@ public class TrainController : MonoBehaviour
 
         direction = (currEndCoords - currStartCoords).normalized;
         startTime = Timer.elapsedSeconds;
-        this.udpClient = udpClient;
-        this.remoteEndpoint = remoteEndpoint;
+        this.port = port;
+        // this.udpClient = udpClient;
+        // this.remoteEndpoint = remoteEndpoint;
+        udpClient = new UdpClient();
+        udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+        udpClient.Client.Bind(new IPEndPoint(IPAddress.Any, port));
+        IPAddress multicastAddress = IPAddress.Parse("224.0.0.1");
+        udpClient.JoinMulticastGroup(multicastAddress);
+        multicastEndPoint = new IPEndPoint(multicastAddress, port);
+        remoteEndpoint = new IPEndPoint(IPAddress.Any, port);
 
         Thread udpThread = new Thread(StartUDPServer);
         udpThread.IsBackground = true;
         udpThread.Start();
+    }
+
+    private bool IsValidTrainData(TrainData data)
+    {
+        return data.start_coords != null && data.end_coords != null &&
+               data.start_coords.Count >= 2 && data.end_coords.Count >= 2;
+    }
+
+    private bool IsValidGPSData(GPSData data)
+    {
+        return data.coords != Vector3.zero || data.direction != Vector3.zero || data.speed != 0;
+    }
+
+    private void HandleString (string message){
+        try
+        {
+            TrainData trainData = JsonUtility.FromJson<TrainData>(message);
+            if (trainData != null && IsValidTrainData(trainData))
+            {
+                Debug.Log("Received TrainData for train #" + trainData.number);
+                startCoords.Enqueue(new Vector3(trainData.start_coords[0]*1000, Constants.TRAIN_HEIGHT / 2, trainData.start_coords[1]*1000));
+                endCoords.Enqueue(new Vector3(trainData.end_coords[0]*1000, Constants.TRAIN_HEIGHT / 2, trainData.end_coords[1]*1000));
+                timeAllocated.Enqueue(trainData.time_allocated);
+                haltTime.Enqueue(trainData.halt_time);
+            }
+        }
+        catch (Exception ex)
+        {
+
+        }
+
+        try
+        {
+            GPSData gpsData = JsonUtility.FromJson<GPSData>(message);
+            if (gpsData != null && IsValidGPSData(gpsData))
+            {
+
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("Error parsing JSON data: " + ex.Message + "\nRaw message: " + message);
+        }
     }
 
     private void StartUDPServer(){
@@ -75,35 +128,44 @@ public class TrainController : MonoBehaviour
             if (udpClient.Available > 0) {
                 byte[] data = udpClient.Receive(ref remoteEndpoint);
                 string message = Encoding.UTF8.GetString(data);
-
-                try
-                {
-                    TrainData trainData = JsonUtility.FromJson<TrainData>(message);
-                    if (trainData != null)
-                    {
-                        startCoords.Enqueue(new Vector3(trainData.start_coords[0]*1000, Constants.TRAIN_HEIGHT / 2, trainData.start_coords[1]*1000));
-                        endCoords.Enqueue(new Vector3(trainData.end_coords[0]*1000, Constants.TRAIN_HEIGHT / 2, trainData.end_coords[1]*1000));
-                        timeAllocated.Enqueue(trainData.time_allocated);
-                        haltTime.Enqueue(trainData.halt_time);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Debug.LogError("Error parsing TrainData JSON: " + ex.Message);
-                }
-            } else {
-                GPSData gpsData = new GPSData {
-                    coords = currCoords,
-                    speed = speed,
-                    direction = direction,
-                    delay = delayTime
-                };
-                string jsonString = JsonUtility.ToJson(gpsData);
-                byte[] sendData = Encoding.UTF8.GetBytes(jsonString);
-                udpClient.Send(sendData, sendData.Length, remoteEndpoint);
+                HandleString(message);
+                // try
+                // {
+                //     TrainData trainData = JsonUtility.FromJson<TrainData>(message);
+                //     if (trainData != null)
+                //     {
+                //         startCoords.Enqueue(new Vector3(trainData.start_coords[0]*1000, Constants.TRAIN_HEIGHT / 2, trainData.start_coords[1]*1000));
+                //         endCoords.Enqueue(new Vector3(trainData.end_coords[0]*1000, Constants.TRAIN_HEIGHT / 2, trainData.end_coords[1]*1000));
+                //         timeAllocated.Enqueue(trainData.time_allocated);
+                //         haltTime.Enqueue(trainData.halt_time);
+                //     }
+                // }
+                // catch (Exception ex)
+                // {
+                //     Debug.LogError("Error parsing TrainData JSON: " + ex.Message);
+                // }
             }
+            GPSData gpsData = new GPSData {
+                coords = currCoords,
+                speed = speed,
+                direction = direction,
+                delay = delayTime
+            };
+            string jsonString = JsonUtility.ToJson(gpsData);
+            byte[] sendData = Encoding.UTF8.GetBytes(jsonString);
+            udpClient.Send(sendData, sendData.Length, multicastEndPoint);
             Thread.Sleep((int)(Constants.TIME_SECOND * 1000));
         }
+        // responseClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+        // responseClient.Client.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.MulticastTimeToLive, 2);
+
+        // byte[] responseData = Encoding.UTF8.GetBytes("READY");
+        // string multicastGroupAddress = "224.0.0.1";
+        // int multicastPort = 8080;
+        // IPEndPoint multicastEndPoint = new IPEndPoint(IPAddress.Parse(multicastGroupAddress), multicastPort);
+
+        // responseClient.Send(responseData, responseData.Length, multicastEndPoint);
+        // Debug.Log($"READY signal multicast to group {multicastGroupAddress}:{multicastPort}");
     }
 
     private float ComputeStoppingDistance(float speed)

@@ -8,9 +8,10 @@ using System.Text;
 
 public class PyReceiver : MonoBehaviour
 {
-    private const int TCP_PORT = 8080;
+    private const int PORT = 8080;
     private const int UDP_PORT = 8081;
-    private TcpListener tcpServer;
+    private const string MULTICAST_GROUP = "224.0.0.1";
+    private UdpClient udpListener;
     private List<UdpClient> udpClients = new List<UdpClient>();
     private bool isRunning = true;
     private Queue<Action> mainThreadActions = new Queue<Action>();
@@ -36,42 +37,57 @@ public class PyReceiver : MonoBehaviour
     {
         try
         {
-            tcpServer = new TcpListener(IPAddress.Any, TCP_PORT);
-            tcpServer.Start();
-            Debug.Log("TCP Server started, waiting for Python connection...");
+            udpListener = new UdpClient();
+            udpListener.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            udpListener.Client.Bind(new IPEndPoint(IPAddress.Any, PORT));
+
+            IPAddress multicastAddress = IPAddress.Parse(MULTICAST_GROUP);
+            udpListener.JoinMulticastGroup(multicastAddress);
+            IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
+            Debug.Log("Server started, waiting for Python connection...");
 
             while (isRunning)
             {
-                TcpClient client = tcpServer.AcceptTcpClient();
-                Debug.Log("Python connected (TCP).");
-                NetworkStream stream = client.GetStream();
-
-                string jsonString = ReadBytes(stream);
-                if (!string.IsNullOrEmpty(jsonString))
+                try
                 {
-                    try
+                    byte[] data = udpListener.Receive(ref remoteEndPoint);
+                    string jsonString = Encoding.UTF8.GetString(data);
+                    Debug.Log($"Received multicast data from {remoteEndPoint}");
+                    if (!string.IsNullOrEmpty(jsonString))
                     {
-                        InitialData initialData = JsonUtility.FromJson<InitialData>(jsonString);
-                        if (initialData != null && initialData.stations.Count > 0)
+                        try
                         {
-                            Debug.Log("Spawning Stations");
-                            mainThreadActions.Enqueue(() => SpawnStationsAndSendReady(initialData, stream));
+                            InitialData initialData = JsonUtility.FromJson<InitialData>(jsonString);
+                            if (initialData != null && initialData.stations.Count > 0)
+                            {
+                                Debug.Log("Spawning Stations");
+                                mainThreadActions.Enqueue(() => SpawnStationsAndSendReady(initialData, remoteEndPoint));
+                            }
+                            else
+                            {
+                                Debug.LogError("Invalid InitialData received.");
+                            }
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            Debug.LogError("Invalid InitialData received.");
+                            Debug.LogError("Error parsing InitialData JSON: " + ex.Message);
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        Debug.LogError("Error parsing InitialData JSON: " + ex.Message);
-                    }
+                }
+                catch (SocketException ex) when (ex.SocketErrorCode == SocketError.AddressAlreadyInUse)
+                {
+                    Debug.LogWarning("Address already in use, attempting to reuse the address.");
+                    udpListener.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError("Error receiving UDP data: " + ex.Message);
                 }
             }
         }
         catch (Exception ex)
         {
-            Debug.LogError("TCP Server error: " + ex.Message);
+            Debug.LogError("Server error: " + ex.Message);
         }
     }
 
@@ -79,28 +95,36 @@ public class PyReceiver : MonoBehaviour
     {
         try
         {
-            UdpClient udpClient = new UdpClient(port);
+            UdpClient udpClient = new UdpClient();
+            udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            udpClient.Client.Bind(new IPEndPoint(IPAddress.Any, port));
+
+            IPAddress multicastAddress = IPAddress.Parse(MULTICAST_GROUP);
+            udpClient.JoinMulticastGroup(multicastAddress);
+            IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
+
             udpClients.Add(udpClient);
-            IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, port);
             Debug.Log($"UDP Server started on port {port}, listening for TrainData...");
 
-            while (isRunning)
-            {
-                byte[] data = udpClient.Receive(ref remoteEndPoint);
-                string jsonString = Encoding.UTF8.GetString(data);
+            byte[] data = udpClient.Receive(ref remoteEndPoint);
+            string jsonString = Encoding.UTF8.GetString(data);
 
-                try
+            try
+            {
+                TrainData trainData = JsonUtility.FromJson<TrainData>(jsonString);
+                if (trainData != null)
                 {
-                    TrainData trainData = JsonUtility.FromJson<TrainData>(jsonString);
-                    if (trainData != null)
-                    {
-                        mainThreadActions.Enqueue(() => SpawnTrains(trainData, udpClient, remoteEndPoint));
-                    }
+                    mainThreadActions.Enqueue(() => SpawnTrains(trainData, port));
                 }
-                catch (Exception ex)
-                {
-                    Debug.LogError("Error parsing TrainData JSON: " + ex.Message);
-                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError("Error parsing TrainData JSON: " + ex.Message);
+            }
+            finally
+            {
+                Debug.Log($"Got data on UDP port {port}");
+                udpClient?.Close();
             }
         }
         catch (Exception ex)
@@ -124,7 +148,7 @@ public class PyReceiver : MonoBehaviour
         stream.Flush();
     }
 
-    void SpawnStationsAndSendReady(InitialData data, NetworkStream stream)
+    void SpawnStationsAndSendReady(InitialData data, IPEndPoint senderEndPoint)
     {
         List<GameObject> stationObjects = new List<GameObject>();
         foreach (Station station in data.stations)
@@ -164,8 +188,19 @@ public class PyReceiver : MonoBehaviour
             udpThread.Start();
         }
 
-        SendResponse(stream, "READY");
-        Debug.Log("Stations spawned. Sent readiness signal.");
+        using (UdpClient responseClient = new UdpClient())
+        {
+            try
+            {
+                byte[] responseData = Encoding.UTF8.GetBytes("READY");
+                responseClient.Send(responseData, responseData.Length, senderEndPoint);
+                Debug.Log($"READY signal sent to {senderEndPoint}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError("Error sending READY signal: " + ex.Message);
+            }
+        }
 
         Timer.StartRunning();
         Debug.Log("ResettableTimer started after READY signal.");
@@ -199,7 +234,7 @@ public class PyReceiver : MonoBehaviour
         trackCollider.material = trackMaterial;
     }
 
-    void SpawnTrains(TrainData train, UdpClient udpClient, IPEndPoint remoteEndpoint)
+    void SpawnTrains(TrainData train, int port)
     {
         Debug.Log($"Train received: {train.number}");
         Vector3 start = new Vector3(train.start_coords[0]*1000, 0, train.start_coords[1]*1000);
@@ -238,7 +273,7 @@ public class PyReceiver : MonoBehaviour
         rb.isKinematic = false;
 
         TrainController trainController = newTrain.AddComponent<TrainController>();
-        trainController.Initialize(train, udpClient, remoteEndpoint);
+        trainController.Initialize(train, port);
         activeTrains[train.number] = newTrain;
 
         Debug.Log($"Train created: {train.number}");
@@ -247,7 +282,7 @@ public class PyReceiver : MonoBehaviour
     void OnApplicationQuit()
     {
         isRunning = false;
-        tcpServer?.Stop();
+        udpListener?.Close();
         foreach (var udpClient in udpClients)
         {
             udpClient?.Close();

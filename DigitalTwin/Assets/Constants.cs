@@ -9,7 +9,10 @@ public static class Constants
     public const float TRAIN_HP = 120000f;
     public const float TRAIN_BRAKE_FORCE = 634500f;
     public const float TRAIN_MAX_ACCELERATION = 2f;
+    public const float Kp = 0.1f;
+    public const float Ki = 0.01f;
+    public const float Kd = 0.01f;
 
-    public static float TIME_SECOND = 1/20f;
-    public static int DAY_HOURS = 5;
+    public const float TIME_SECOND = 1/20f;
+    public const int DAY_HOURS = 5;
 }

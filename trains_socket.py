@@ -31,19 +31,20 @@ class TrainSocket(threading.Thread):
         self.smallest = str_to_timer(smallest_day, smallest_time)
         self.largest = str_to_timer(largest_day, largest_time)
 
+        self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.udp_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+        self.multicast_group = ("224.0.0.1", port)
+
         print(f"Train {train['train_no']} initialized.")
 
     def send_update(self, train_data: TrainData):
         data = train_data.model_dump_json()
-        udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
         try:
-            udp_socket.sendto(data.encode("utf-8"), (self.host, self.port))
+            self.udp_socket.sendto(data.encode("utf-8"), self.multicast_group)
             print(f"Sent: Train {self.train['train_no']} at {train_data}")
         except socket.error as e:
             print(f"[ERROR] Could not send data: {e}")
-        finally:
-            udp_socket.close()
 
     def get_next_segment(self, curr_time:TimerFormat):
         from_time = str_to_timer(
@@ -93,3 +94,4 @@ class TrainSocket(threading.Thread):
 
     def stop(self):
         self.running = False
+        self.udp_socket.close()

@@ -8,24 +8,25 @@ from trains_socket import TIMER, TrainSocket
 
 HOST = "127.0.0.1"
 PORT = 8080
-BASE_DIR = "./sample_scenarios/3stations2trains1day"
+BASE_DIR = "./sample_scenarios/2stations1trains1day"
 # BASE_DIR = "./data/generated"
 
 def send_initial_data(no_trains: int, BASE_DIR):
     """Sends the InitialData to Unity and waits until Unity is ready."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-        client_socket.connect((HOST, PORT))
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as client_socket:
+        client_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+        client_socket.settimeout(5)
         initial_data = get_initial_data(no_trains=no_trains, BASE_DIR=BASE_DIR)
         initial_data = initial_data.model_dump_json()
+        multicast_group = ('224.0.0.1', PORT)
         print("Sending InitialData to Unity...")
-        client_socket.sendall(initial_data.encode("utf-8"))
+        client_socket.sendto(initial_data.encode("utf-8"), multicast_group)
         print("Sent InitialData to Unity. Waiting for Unity to get ready...")
-        client_socket.settimeout(5)
 
         while True:
             try:
-                response = client_socket.recv(1024).decode("utf-8")
-                response = response.strip()
+                response, _ = client_socket.recvfrom(1024)
+                response = response.decode("utf-8").strip()
                 if response == "READY":
                     print("Unity is ready. Starting train data transmission.")
                     return True
