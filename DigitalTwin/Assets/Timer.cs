@@ -26,9 +26,9 @@ public class Timer : MonoBehaviour
 {
     public static int elapsedSeconds;
     public static int elapsedDays;
-    private float second = Constants.TIME_SECOND;
-    private int hours_in_day = Constants.DAY_HOURS;
-    private int max_seconds = Constants.DAY_HOURS * 60 * 60 - 1;
+    private float second = YamlConfigManager.Config.time.seconds;
+    private int hours_in_day = 24;
+    private int max_seconds = 24 * 60 * 60 - 1;
 
     private bool isRunning;
     private const int UDP_PORT = 8079;

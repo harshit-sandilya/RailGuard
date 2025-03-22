@@ -155,8 +155,8 @@ public class PyReceiver : MonoBehaviour
         {
             GameObject stationObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
             stationObj.transform.position = new Vector3(station.coords[0]*1000 - 125, 0, station.coords[1]*1000 + 125);
-            stationObj.transform.rotation = Quaternion.Euler(0, station.rotation - 90, 0);
-            stationObj.transform.localScale = new Vector3(200, 100, 500);
+            stationObj.transform.rotation = Quaternion.Euler(0, station.rotation, 0);
+            stationObj.transform.localScale = new Vector3(YamlConfigManager.Config.station.length, YamlConfigManager.Config.station.height, YamlConfigManager.Config.station.width);
             stationObj.name = station.name;
 
             Renderer renderer = stationObj.GetComponent<Renderer>();
@@ -175,6 +175,7 @@ public class PyReceiver : MonoBehaviour
             Track track = data.tracks[i];
             Vector3 start = new Vector3(track.start[0]*1000, 0, track.start[1]*1000);
             Vector3 end = new Vector3(track.end[0]*1000, 0, track.end[1]*1000);
+            Debug.Log($"Spawning track {i} from {start} to {end}");
             SpawnTrack(start, end, i);
         }
 
@@ -209,7 +210,8 @@ public class PyReceiver : MonoBehaviour
     void SpawnTrack(Vector3 start, Vector3 end, int i)
     {
         Vector3 midPoint = (start + end) / 2;
-        float distance = Vector3.Distance(start, end) + Constants.TRAIN_LENGTH;
+        // Vector3 offset = new Vector3(10, 0, 10);
+        float distance = Vector3.Distance(start, end);
 
         GameObject track = GameObject.CreatePrimitive(PrimitiveType.Cube);
         track.transform.position = new Vector3(midPoint.x, -1f, midPoint.z);
@@ -228,8 +230,8 @@ public class PyReceiver : MonoBehaviour
         rb.constraints = RigidbodyConstraints.FreezeAll;
 
         PhysicsMaterial trackMaterial = new PhysicsMaterial();
-        trackMaterial.dynamicFriction = Constants.TRAIN_TRACK_COEFFICIENT;
-        trackMaterial.staticFriction = Constants.TRAIN_TRACK_COEFFICIENT;
+        trackMaterial.dynamicFriction = YamlConfigManager.Config.physics.friction_coefficient;
+        trackMaterial.staticFriction = YamlConfigManager.Config.physics.friction_coefficient;
         trackMaterial.frictionCombine = PhysicsMaterialCombine.Maximum;
         trackCollider.material = trackMaterial;
     }
@@ -243,11 +245,11 @@ public class PyReceiver : MonoBehaviour
         float angle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
 
         GameObject newTrain = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        newTrain.transform.position = new Vector3(train.start_coords[0]*1000, Constants.TRAIN_HEIGHT / 2 + 1, train.start_coords[1]*1000);
-        newTrain.transform.localScale = new Vector3(Constants.TRAIN_WIDTH, Constants.TRAIN_HEIGHT, Constants.TRAIN_LENGTH);
+        newTrain.transform.position = new Vector3(train.start_coords[0]*1000, YamlConfigManager.Config.train.height / 2 + 1, train.start_coords[1]*1000);
+        newTrain.transform.localScale = new Vector3(YamlConfigManager.Config.train.width, YamlConfigManager.Config.train.height, YamlConfigManager.Config.train.length);
         newTrain.transform.rotation = Quaternion.Euler(0, angle, 0);
 
-        newTrain.name = "Train_" + train.number;
+        newTrain.name = "train." + train.number;
 
         Renderer renderer = newTrain.GetComponent<Renderer>();
         if (renderer != null)
@@ -259,14 +261,14 @@ public class PyReceiver : MonoBehaviour
         collider.isTrigger = false;
 
         PhysicsMaterial trainMaterial = new PhysicsMaterial();
-        trainMaterial.dynamicFriction = Constants.TRAIN_TRACK_COEFFICIENT;
-        trainMaterial.staticFriction = Constants.TRAIN_TRACK_COEFFICIENT;
+        trainMaterial.dynamicFriction = YamlConfigManager.Config.physics.friction_coefficient;
+        trainMaterial.staticFriction = YamlConfigManager.Config.physics.friction_coefficient;
         trainMaterial.frictionCombine = PhysicsMaterialCombine.Maximum;
         trainMaterial.bounciness = 0;
         collider.material = trainMaterial;
 
         Rigidbody rb = newTrain.AddComponent<Rigidbody>();
-        rb.mass = Constants.TRAIN_MASS;
+        rb.mass = YamlConfigManager.Config.train.mass;
         rb.useGravity = true;
         rb.linearDamping = 0;
         rb.angularDamping = 0;
@@ -298,8 +300,6 @@ public class InitialData
     public List<Station> stations;
     public List<Track> tracks;
     public int trains;
-    public float TIME_SECOND;
-    public int DAY_HOURS;
 }
 
 [Serializable]

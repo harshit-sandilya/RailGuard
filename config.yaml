@@ -1,0 +1,54 @@
+# RailGuard Simulation Configuration File
+# This YAML file contains various configurable parameters for the RailGuard simulation.
+# Each section defines a specific aspect of the simulation, such as entity settings, physics, train properties, and control system configurations.
+
+data-dir: "examples/2stations1trains1day" # Directory where the trains to be simulated are stored.
+
+# ============================================
+# ENTITY CONFIGURATION
+# ============================================
+entities:
+    stations: 2  # Defines the number of train stations present on the map.
+    trains: 1    # Specifies how many trains are active in the simulation.
+
+# ============================================
+# STATION CONFIGURATION
+# ============================================
+station:
+    length: 250 # Station length in meters.
+    width: 100 # Station width in meters.
+    height: 100 # Station height in meters.
+
+# ============================================
+# SIMULATION TIME CONFIGURATION
+# ============================================
+time:
+    seconds: 0.05 # Time scaling factor: 1 means real-time, 20 means simulation runs at 20x of real speed.
+
+# ============================================
+# PHYSICS CONFIGURATION
+# ============================================
+physics:
+    friction-coefficient: 0.2 # The coefficient of friction for the train's interaction with the track.
+
+# ============================================
+# TRAIN CONFIGURATION
+# ============================================
+train:
+    length: 300          # Train length in meters.
+    width: 100           # Train width in meters.
+    height: 100          # Train height in meters.
+    mass: 500000         # Train's total mass in kilograms.
+    hp: 120000           # Train's horsepower (power output of the engine).
+    brake-force: 634500  # Maximum braking force in Newtons, determining stopping power.
+    max-speed: 36        # Maximum speed of the train in meters per second (~129 km/h).
+    max-acceleration: 2  # Maximum acceleration in meters per second squared (m/s²).
+
+# ============================================
+# TRAIN CONTROL SYSTEM CONFIGURATION
+# ============================================
+control:
+    pid:
+        kp: 0.1  # Proportional gain (P) - affects how strongly the controller reacts to errors.
+        ki: 0.01 # Integral gain (I) - helps correct steady-state errors over time.
+        kd: 0.01 # Derivative gain (D) - predicts future errors and smoothens control actions.

@@ -1,20 +1,22 @@
 import json
 
 from schema import InitialData
+from typing import List
+from configObject import config
 from schema.initial import Station, Track
+from preprocess.generate_tracks import get_tracks
 from utils.angle_between_lines import angle_between_lines
-from constants import TIME_SECOND, DAY_HOURS
+from pprint import pprint
 
 
 def mean(arr):
     return sum(arr) / len(arr)
 
 
-def get_initial_data(no_trains: int, BASE_DIR) -> InitialData:
+def get_initial_data(train_data: List[dict], BASE_DIR) -> InitialData:
+    no_trains = len(train_data)
     with open(f"{BASE_DIR}/stations.json") as f:
         stations = json.load(f)
-    with open(f"{BASE_DIR}/tracks.json") as f:
-        tracks = json.load(f)
     data = []
     for station in stations:
         data.append({"name": station["station"], "coords": station["coordinates"]})
@@ -27,7 +29,7 @@ def get_initial_data(no_trains: int, BASE_DIR) -> InitialData:
             center, entry["coords"], entry["coords"], (center[0], entry["coords"][1])
         )
     stations = [Station(**entry) for entry in data]
-    tracks = [Track(**entry) for entry in tracks]
-    data = InitialData(stations=stations, tracks=tracks, trains=no_trains, TIME_SECOND=TIME_SECOND, DAY_HOURS=DAY_HOURS)
-    print("Initial data loaded", data.tracks)
+    tracks = get_tracks(stations, train_data, config.train.length/1000, config.station.width * 2/1000)
+    data = InitialData(stations=stations, tracks=tracks, trains=no_trains)
+    pprint(data.tracks)
     return data

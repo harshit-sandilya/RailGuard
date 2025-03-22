@@ -2,21 +2,19 @@ import json
 import socket
 import time
 
-from constants import TIME_SECOND
+from configObject import TIME_SECOND, TIMER, BASE_DIR
 from get_initial_data import get_initial_data
 from trains_socket import TIMER, TrainSocket
 
 HOST = "127.0.0.1"
 PORT = 8080
-BASE_DIR = "./sample_scenarios/2stations1trains1day"
-# BASE_DIR = "./data/generated"
 
-def send_initial_data(no_trains: int, BASE_DIR):
+def send_initial_data(train_data, BASE_DIR):
     """Sends the InitialData to Unity and waits until Unity is ready."""
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as client_socket:
         client_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
         client_socket.settimeout(5)
-        initial_data = get_initial_data(no_trains=no_trains, BASE_DIR=BASE_DIR)
+        initial_data = get_initial_data(train_data, BASE_DIR=BASE_DIR)
         initial_data = initial_data.model_dump_json()
         multicast_group = ('224.0.0.1', PORT)
         print("Sending InitialData to Unity...")
@@ -43,8 +41,7 @@ def send_initial_data(no_trains: int, BASE_DIR):
 def main():
     with open(f"{BASE_DIR}/trains.json", "r") as file:
         train_data = json.load(file)
-    no_trains = len(train_data)
-    if send_initial_data(no_trains, BASE_DIR):
+    if send_initial_data(train_data, BASE_DIR):
         TIMER.start()
         sockets = [
             TrainSocket(train, port=PORT + i + 1) for i, train in enumerate(train_data)

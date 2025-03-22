@@ -2,13 +2,10 @@ import socket
 import threading
 import time
 
-from constants import DAY_HOURS, TIME_SECOND
 from schema import TrainData
 from schema.timer import TimerFormat
-from timer import ResettableTimer
 from utils import str_to_timer, timer_to_seconds
-
-TIMER = ResettableTimer(max_time=(DAY_HOURS * 60 * 60 - 1))
+from configObject import TIMER, TIME_SECOND
 
 
 class TrainSocket(threading.Thread):
@@ -21,6 +18,7 @@ class TrainSocket(threading.Thread):
         self.from_index = 0
         self.to_index = 1
         self.trips = 0
+        self.TIME_SECOND = TIME_SECOND
 
         schedules = train["schedules"]
         smallest_day = schedules[0]["arrival_day"]
@@ -46,7 +44,7 @@ class TrainSocket(threading.Thread):
         except socket.error as e:
             print(f"[ERROR] Could not send data: {e}")
 
-    def get_next_segment(self, curr_time:TimerFormat):
+    def get_next_segment(self, curr_time: TimerFormat):
         from_time = str_to_timer(
             self.train["schedules"][self.from_index]["departure_day"],
             self.train["schedules"][self.from_index]["departure"],
@@ -76,7 +74,7 @@ class TrainSocket(threading.Thread):
         while self.running:
             current_time = TIMER.get_time()
             while current_time < self.smallest:
-                time.sleep(TIME_SECOND)
+                time.sleep(self.TIME_SECOND)
                 current_time = TIMER.get_time()
             while current_time < self.largest:
                 data = self.get_next_segment(current_time)
@@ -84,7 +82,7 @@ class TrainSocket(threading.Thread):
                     self.send_update(data)
                     self.from_index = self.to_index
                     self.to_index = self.to_index + 1 if self.to_index < len(self.train["schedules"]) - 1 else 0
-                time.sleep(TIME_SECOND)
+                time.sleep(self.TIME_SECOND)
                 current_time = TIMER.get_time()
             self.trips += 1
             self.smallest.day = self.smallest.day + self.largest.day

@@ -4,12 +4,11 @@ import socket
 import json
 from datetime import datetime
 
-from constants import TIME_SECOND
 from schema.timer import TimerFormat
 
 
 class ResettableTimer(threading.Thread):
-    def __init__(self, max_time):
+    def __init__(self, max_time, TIME_SECOND=1):
         super().__init__()
         self.max_time = max_time
         self.elapsed_time = 0
@@ -22,6 +21,7 @@ class ResettableTimer(threading.Thread):
         self.udp_socket.bind(("localhost", self.udp_port))
         self.udp_socket.settimeout(1)
         self.udp_thread = threading.Thread(target=self.get_time_over_udp, daemon=True)
+        self.TIME_SECOND = TIME_SECOND
 
     def get_human_format(self):
         return TimerFormat(
@@ -46,7 +46,7 @@ class ResettableTimer(threading.Thread):
                 received_seconds = system_time[0] * 3600 + system_time[1] * 60 + system_time[2] + system_time[3] / 1000
                 current_seconds = system_time_now.hour * 3600 + system_time_now.minute * 60 + system_time_now.second + round(system_time_now.microsecond / 1000000,3)
                 time_diff = current_seconds - received_seconds
-                adjusted_elapsed_time = int(elapsed_time_received + time_diff / TIME_SECOND)
+                adjusted_elapsed_time = int(elapsed_time_received + time_diff / self.TIME_SECOND)
 
                 with self.lock:
                     elapsed_diff = abs(adjusted_elapsed_time - self.elapsed_time)
@@ -63,7 +63,7 @@ class ResettableTimer(threading.Thread):
         self.running = True
         self.udp_thread.start()
         while self.running:
-            time.sleep(TIME_SECOND)
+            time.sleep(self.TIME_SECOND)
             with self.lock:
                 self.elapsed_time += 1
                 print(f"Time passed: {self.get_human_format()}")

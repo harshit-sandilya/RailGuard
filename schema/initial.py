@@ -17,5 +17,3 @@ class InitialData(BaseModel):
     stations: List[Station]
     tracks: List[Track]
     trains: int
-    TIME_SECOND: float
-    DAY_HOURS: int
