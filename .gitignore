@@ -2,6 +2,8 @@ data/*
 !data/trains.json
 !data/stations.json
 !data/schedules.json
+!data/utils/
+!data/utils/*
 
 # Python
 __pycache__/
@@ -13,62 +15,12 @@ dist/
 build/
 *.log
 
-# Unity
-[Ll]ibrary/
-[Tt]emp/
-[Oo]bj/
-[Bb]uild/
-[Bb]uilds/
-[Ll]ogs/
-[Mm]emoryCaptures/
-[Uu]ser[Ss]ettings/
-[Rr]ecordings/
-[Aa]ssets/Plugins/Editor/JetBrains*
-.gradle/
-[Aa]ssets/[Aa]ddressable[Aa]ssets[Dd]ata/*/*.bin*
-[Aa]ssets/[Ss]treamingAssets/aa.meta
-[Aa]ssets/[Ss]treamingAssets/aa/*
-
-ExportedObj/
-.consulo/
-
-*.pidb
-*.booproj
-*.svd
-*.userprefs
-*.csproj
-*.sln
-*.suo
-*.tmp
-*.user
-*.pidb.meta
-*.booproj.meta
-*.svd.meta
-*.unityproj
-*.unityproj.meta
-*.sln.meta
-*.suo.meta
-*.tmp.meta
-*.user.meta
-*.userprefs.meta
-
-*.pdb
-*.mdb
-*.opendb
-*.VC.db
-
-*.pdb.meta
-*.mdb.meta
-
-sysinfo.txt
-
-*.apk
-*.aab
-*.unitypackage
-*.unitypackage.meta
-*.app
-
-crashlytics-build.properties
+# Unreal
+environment/Binaries/
+environment/DerivedDataCache/
+environment/Intermediate/
+environment/Saved/
+environment/.vs/
 
 # misc
 .DS_Store

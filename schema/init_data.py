@@ -1,0 +1,18 @@
+from pydantic import BaseModel
+from typing_extensions import List
+
+
+class Station(BaseModel):
+    name: str
+    coords: List[float]
+    rotation: float
+
+
+class Track(BaseModel):
+    start: List[float]
+    end: List[float]
+
+
+class InitData(BaseModel):
+    stations: List[Station]
+    tracks: List[Track]
