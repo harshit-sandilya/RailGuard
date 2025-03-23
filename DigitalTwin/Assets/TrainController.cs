@@ -26,6 +26,9 @@ public class TrainController : MonoBehaviour
     private IPEndPoint multicastEndPoint;
     private int port;
 
+    private float length = YamlConfigManager.Config.train.length;
+    private float width = YamlConfigManager.Config.train.width;
+    private float height = YamlConfigManager.Config.train.height;
     private float maxAcceleration = YamlConfigManager.Config.train.max_acceleration;
     private float maxSpeed = YamlConfigManager.Config.train.max_speed;
     private float trainMass = YamlConfigManager.Config.train.mass;
@@ -63,14 +66,14 @@ public class TrainController : MonoBehaviour
         timeAllocated = new Queue<float>();
         haltTime = new Queue<float>();
 
-        currStartCoords= new Vector3(trainData.start_coords[0]*1000, YamlConfigManager.Config.train.height / 2, trainData.start_coords[1]*1000);
-        currEndCoords= new Vector3(trainData.end_coords[0]*1000, YamlConfigManager.Config.train.height / 2, trainData.end_coords[1]*1000);
-        currTimeAllocated= trainData.time_allocated;
-        currHaltTime= trainData.halt_time;
+        currStartCoords = new Vector3(trainData.start_coords[0] * 1000, YamlConfigManager.Config.train.height / 2, trainData.start_coords[1] * 1000);
+        currEndCoords = new Vector3(trainData.end_coords[0] * 1000, YamlConfigManager.Config.train.height / 2, trainData.end_coords[1] * 1000);
+        currTimeAllocated = trainData.time_allocated;
+        currHaltTime = trainData.halt_time;
         float totalDistance = Vector3.Distance(currStartCoords, currEndCoords);
         requiredAvgSpeed = totalDistance / currTimeAllocated;
-
         direction = (currEndCoords - currStartCoords).normalized;
+
         startTime = Timer.elapsedSeconds;
         this.port = port;
         // this.udpClient = udpClient;
@@ -87,6 +90,22 @@ public class TrainController : MonoBehaviour
         udpThread.IsBackground = true;
         udpThread.Start();
 
+
+        // NEW MODEL
+        // Debug.Log("Train initialized with start coords: " + currStartCoords + " and end coords: " + currEndCoords);
+        EnvironmentManager.checkStationArray();
+        int index = EnvironmentManager.isStation(new Vector3(currStartCoords.x, 0, currStartCoords.z));
+        // Debug.Log("Station index: " + index);
+        List<List<Vector3>> Route = EnvironmentManager.getRoute(index);
+        string routeString = string.Join(",", Route.ConvertAll(segment => $"[{segment[0]},{segment[1]}]"));
+        Debug.Log(routeString);
+        List<Vector3> current = Route[0];
+        List<List<Vector3>> next = Route.GetRange(1, Route.Count - 1);
+        currStartCoords = new Vector3(current[0].x + length / 2, height / 2 + 1, current[0].z + width / 2);
+        currEndCoords = new Vector3(current[1].x - length / 2, height / 2 + 1, current[1].z - width / 2);
+        transform.position = currStartCoords;
+        direction = (currEndCoords - currStartCoords).normalized;
+        transform.rotation = Quaternion.LookRotation(direction);
         // InitializeCSV();
     }
 
@@ -117,22 +136,23 @@ public class TrainController : MonoBehaviour
         return data.coords != Vector3.zero || data.direction != Vector3.zero || data.speed != 0;
     }
 
-    private void HandleString (string message){
+    private void HandleString(string message)
+    {
         try
         {
             TrainData trainData = JsonUtility.FromJson<TrainData>(message);
             if (trainData != null && IsValidTrainData(trainData))
             {
                 Debug.Log("Received TrainData for train #" + trainData.number);
-                startCoords.Enqueue(new Vector3(trainData.start_coords[0]*1000, YamlConfigManager.Config.train.height / 2, trainData.start_coords[1]*1000));
-                endCoords.Enqueue(new Vector3(trainData.end_coords[0]*1000, YamlConfigManager.Config.train.height / 2, trainData.end_coords[1]*1000));
+                startCoords.Enqueue(new Vector3(trainData.start_coords[0] * 1000, YamlConfigManager.Config.train.height / 2, trainData.start_coords[1] * 1000));
+                endCoords.Enqueue(new Vector3(trainData.end_coords[0] * 1000, YamlConfigManager.Config.train.height / 2, trainData.end_coords[1] * 1000));
                 timeAllocated.Enqueue(trainData.time_allocated);
                 haltTime.Enqueue(trainData.halt_time);
             }
         }
         catch (Exception)
         {
-
+            ;
         }
 
         try
@@ -140,7 +160,7 @@ public class TrainController : MonoBehaviour
             GPSData gpsData = JsonUtility.FromJson<GPSData>(message);
             if (gpsData != null && IsValidGPSData(gpsData))
             {
-
+                ;
             }
         }
         catch (Exception ex)
@@ -149,14 +169,18 @@ public class TrainController : MonoBehaviour
         }
     }
 
-    private void StartUDPServer(){
-        while (true) {
-            if (udpClient.Available > 0) {
+    private void StartUDPServer()
+    {
+        while (true)
+        {
+            if (udpClient.Available > 0)
+            {
                 byte[] data = udpClient.Receive(ref remoteEndpoint);
                 string message = Encoding.UTF8.GetString(data);
                 HandleString(message);
             }
-            GPSData gpsData = new GPSData {
+            GPSData gpsData = new GPSData
+            {
                 coords = currCoords,
                 speed = speed,
                 direction = direction,
@@ -196,7 +220,6 @@ public class TrainController : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody>();
-        rb.constraints = RigidbodyConstraints.FreezeRotation;
         Time.fixedDeltaTime = YamlConfigManager.Config.time.seconds;
         state = TrainState.Accelerate;
         frictionForceMagnitude = YamlConfigManager.Config.physics.friction_coefficient * trainMass * Physics.gravity.magnitude;
@@ -211,14 +234,17 @@ public class TrainController : MonoBehaviour
         currCoords = transform.position;
         float distanceRemaining = Vector3.Distance(transform.position, currEndCoords);
         speed = Vector3.Dot(rb.linearVelocity, direction);
-        if (state != TrainState.Stop) {
+        if (state != TrainState.Stop)
+        {
             TuneFriction();
-        } else {
+        }
+        else
+        {
             currHaltTime--;
         }
-        // WriteToCSV(elapsedTime, speed);
 
-        switch(state){
+        switch (state)
+        {
             case TrainState.Accelerate:
                 AccelerateTrain(elapsedTime, distanceRemaining, speed);
                 break;
@@ -232,7 +258,8 @@ public class TrainController : MonoBehaviour
                 break;
         }
 
-        if (state != TrainState.Stop) {
+        if (state != TrainState.Stop)
+        {
             stoppingDistance = ComputeStoppingDistance(speed);
             frictionForceMagnitude = frictionForce.magnitude;
             previousVelocity = speed;
@@ -241,16 +268,19 @@ public class TrainController : MonoBehaviour
 
     private void AccelerateTrain(float elapsedTime, float distanceRemaining, float speed)
     {
-        if (distanceRemaining > stoppingDistance) {
+        if (distanceRemaining > stoppingDistance)
+        {
             float maxForce = Mathf.Clamp(maxPower / (speed + Mathf.Epsilon), 0f, trainMass * maxAcceleration + frictionForceMagnitude);
-            if (speed < Mathf.Min(maxSpeed, requiredAvgSpeed)) {
+            if (speed < Mathf.Min(maxSpeed, requiredAvgSpeed))
+            {
                 rb.AddForce(direction * maxForce, ForceMode.Force);
                 float actualForce = maxForce - frictionForceMagnitude;
                 expectedAcceleration = actualForce / trainMass;
                 // Debug.Log("Force, Acceleration: " + actualForce + ", " + expectedAcceleration);
             }
-            else if (speed == maxSpeed && maxForce >= frictionForceMagnitude) {
-                rb.AddForce(-frictionForce,ForceMode.Force);
+            else if (speed == maxSpeed && maxForce >= frictionForceMagnitude)
+            {
+                rb.AddForce(-frictionForce, ForceMode.Force);
                 expectedAcceleration = 0f;
             }
             requiredAvgSpeed = distanceRemaining / (currTimeAllocated - elapsedTime);
@@ -277,8 +307,10 @@ public class TrainController : MonoBehaviour
 
     private void HaltTrain()
     {
-        if (currHaltTime == 0f){
-            if (haltTime.Count > 0 && timeAllocated.Count > 0 && startCoords.Count > 0 && endCoords.Count > 0){
+        if (currHaltTime == 0f)
+        {
+            if (haltTime.Count > 0 && timeAllocated.Count > 0 && startCoords.Count > 0 && endCoords.Count > 0)
+            {
                 startTime = Timer.elapsedSeconds;
                 currHaltTime = haltTime.Dequeue();
                 currTimeAllocated = timeAllocated.Dequeue() - delayTime;
@@ -286,23 +318,16 @@ public class TrainController : MonoBehaviour
                 currEndCoords = endCoords.Dequeue();
                 state = TrainState.Accelerate;
             }
-            else {
+            else
+            {
                 Destroy(gameObject);
             }
         }
     }
 
-    void OnApplicationQuit(){
+    void OnApplicationQuit()
+    {
         udpClient.Close();
         udpClient = null;
     }
-}
-
-[Serializable]
-public class GPSData
-{
-    public Vector3 coords;
-    public float speed;
-    public Vector3 direction;
-    public float delay;
 }

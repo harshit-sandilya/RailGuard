@@ -14,4 +14,6 @@ def read_config() -> Config:
             config["train"]["max_acceleration"] = config["train"].pop("max-acceleration")
         if "max-speed" in config["train"]:
             config["train"]["max_speed"] = config["train"].pop("max-speed")
+        if "tractive-effort" in config["train"]:
+            config["train"]["tractive_effort"] = config["train"].pop("tractive-effort")
         return Config(**config)

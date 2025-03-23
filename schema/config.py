@@ -24,6 +24,7 @@ class Train(BaseModel):
     mass: int
     hp: int
     brake_force: int
+    tractive_effort: int
     max_speed: int
     max_acceleration: int
 

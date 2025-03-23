@@ -6,7 +6,6 @@ from configObject import config
 from schema.initial import Station, Track
 from preprocess.generate_tracks import get_tracks
 from utils.angle_between_lines import angle_between_lines
-from pprint import pprint
 
 
 def mean(arr):
@@ -29,7 +28,12 @@ def get_initial_data(train_data: List[dict], BASE_DIR) -> InitialData:
             center, entry["coords"], entry["coords"], (center[0], entry["coords"][1])
         )
     stations = [Station(**entry) for entry in data]
-    tracks = get_tracks(stations, train_data, config.train.length/1000, config.station.width * 2/1000)
+    tracks = get_tracks(
+        stations,
+        train_data,
+        (config.train.length * 2) / 1000,
+        (config.station.width * 4) / 1000,
+    )
     data = InitialData(stations=stations, tracks=tracks, trains=no_trains)
-    pprint(data.tracks)
+    data.tracks
     return data

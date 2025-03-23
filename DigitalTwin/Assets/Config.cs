@@ -52,6 +52,7 @@ public class TrainConfig
     public float mass { get; set; }
     public float hp { get; set; }
     public float brake_force { get; set; }
+    public float tractive_effort { get; set; }
     public float max_speed { get; set; }
     public float max_acceleration { get; set; }
 }

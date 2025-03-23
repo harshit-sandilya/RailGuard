@@ -154,7 +154,7 @@ public class PyReceiver : MonoBehaviour
         foreach (Station station in data.stations)
         {
             GameObject stationObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            stationObj.transform.position = new Vector3(station.coords[0]*1000 - 125, 0, station.coords[1]*1000 + 125);
+            stationObj.transform.position = new Vector3(station.coords[0] * 1000 + 125, 0, station.coords[1] * 1000 - 125);
             stationObj.transform.rotation = Quaternion.Euler(0, station.rotation, 0);
             stationObj.transform.localScale = new Vector3(YamlConfigManager.Config.station.length, YamlConfigManager.Config.station.height, YamlConfigManager.Config.station.width);
             stationObj.name = station.name;
@@ -173,9 +173,8 @@ public class PyReceiver : MonoBehaviour
         for (int i = 0; i < data.tracks.Count; i++)
         {
             Track track = data.tracks[i];
-            Vector3 start = new Vector3(track.start[0]*1000, 0, track.start[1]*1000);
-            Vector3 end = new Vector3(track.end[0]*1000, 0, track.end[1]*1000);
-            Debug.Log($"Spawning track {i} from {start} to {end}");
+            Vector3 start = new Vector3(track.start[0] * 1000, 0, track.start[1] * 1000);
+            Vector3 end = new Vector3(track.end[0] * 1000, 0, track.end[1] * 1000);
             SpawnTrack(start, end, i);
         }
 
@@ -188,6 +187,8 @@ public class PyReceiver : MonoBehaviour
             udpThread.IsBackground = true;
             udpThread.Start();
         }
+
+        EnvironmentManager.Initialise(data.stations, data.tracks);
 
         using (UdpClient responseClient = new UdpClient())
         {
@@ -210,12 +211,12 @@ public class PyReceiver : MonoBehaviour
     void SpawnTrack(Vector3 start, Vector3 end, int i)
     {
         Vector3 midPoint = (start + end) / 2;
-        // Vector3 offset = new Vector3(10, 0, 10);
-        float distance = Vector3.Distance(start, end);
+        Vector3 offset = new Vector3(25, 0, 25);
+        float distance = Vector3.Distance(start, end) + offset.magnitude;
 
         GameObject track = GameObject.CreatePrimitive(PrimitiveType.Cube);
         track.transform.position = new Vector3(midPoint.x, -1f, midPoint.z);
-        track.transform.localScale = new Vector3(distance, 1f, 100f);
+        track.transform.localScale = new Vector3(distance, 1f, YamlConfigManager.Config.train.width + 25);
 
         float angle = Mathf.Atan2(end.z - start.z, end.x - start.x) * Mathf.Rad2Deg;
         track.transform.rotation = Quaternion.Euler(0, -angle, 0);
@@ -239,13 +240,13 @@ public class PyReceiver : MonoBehaviour
     void SpawnTrains(TrainData train, int port)
     {
         Debug.Log($"Train received: {train.number}");
-        Vector3 start = new Vector3(train.start_coords[0]*1000, 0, train.start_coords[1]*1000);
-        Vector3 end = new Vector3(train.end_coords[0]*1000, 0, train.end_coords[1]*1000);
+        Vector3 start = new Vector3(train.start_coords[0] * 1000, 0, train.start_coords[1] * 1000);
+        Vector3 end = new Vector3(train.end_coords[0] * 1000, 0, train.end_coords[1] * 1000);
         Vector3 direction = (end - start).normalized;
         float angle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
 
         GameObject newTrain = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        newTrain.transform.position = new Vector3(train.start_coords[0]*1000, YamlConfigManager.Config.train.height / 2 + 1, train.start_coords[1]*1000);
+        newTrain.transform.position = new Vector3(train.start_coords[0] * 1000, YamlConfigManager.Config.train.height / 2 + 1, train.start_coords[1] * 1000);
         newTrain.transform.localScale = new Vector3(YamlConfigManager.Config.train.width, YamlConfigManager.Config.train.height, YamlConfigManager.Config.train.length);
         newTrain.transform.rotation = Quaternion.Euler(0, angle, 0);
 
@@ -291,38 +292,4 @@ public class PyReceiver : MonoBehaviour
         }
         Timer.StopRunning();
     }
-}
-
-
-[Serializable]
-public class InitialData
-{
-    public List<Station> stations;
-    public List<Track> tracks;
-    public int trains;
-}
-
-[Serializable]
-public class Track
-{
-    public List<float> start;
-    public List<float> end;
-}
-
-[Serializable]
-public class Station
-{
-    public string name;
-    public List<float> coords;
-    public float rotation;
-}
-
-[Serializable]
-public class TrainData
-{
-    public int number;
-    public List<float> start_coords;
-    public List<float> end_coords;
-    public float time_allocated;
-    public float halt_time;
 }
