@@ -92,10 +92,8 @@ public class TrainController : MonoBehaviour
 
 
         // NEW MODEL
-        // Debug.Log("Train initialized with start coords: " + currStartCoords + " and end coords: " + currEndCoords);
         EnvironmentManager.checkStationArray();
         int index = EnvironmentManager.isStation(new Vector3(currStartCoords.x, 0, currStartCoords.z));
-        // Debug.Log("Station index: " + index);
         List<List<Vector3>> Route = EnvironmentManager.getRoute(index);
         string routeString = string.Join(",", Route.ConvertAll(segment => $"[{segment[0]},{segment[1]}]"));
         Debug.Log(routeString);
@@ -106,7 +104,9 @@ public class TrainController : MonoBehaviour
         transform.position = currStartCoords;
         direction = (currEndCoords - currStartCoords).normalized;
         transform.rotation = Quaternion.LookRotation(direction);
-        // InitializeCSV();
+        currTimeAllocated = 5;
+        currHaltTime = 2;
+        Debug.Log("Train initialized with start coords: " + currStartCoords + " and end coords: " + currEndCoords + " to complete in " + currTimeAllocated + " seconds");
     }
 
     private void InitializeCSV()
@@ -196,6 +196,10 @@ public class TrainController : MonoBehaviour
     private float ComputeStoppingDistance(float speed)
     {
         float maxDeceleration = (brakeForce + frictionForceMagnitude) / trainMass;
+        if (speed == 0)
+        {
+            return 0;
+        }
         return Mathf.Pow(speed, 2) / (2 * maxDeceleration);
     }
 
@@ -222,7 +226,7 @@ public class TrainController : MonoBehaviour
         rb = GetComponent<Rigidbody>();
         Time.fixedDeltaTime = YamlConfigManager.Config.time.seconds;
         state = TrainState.Accelerate;
-        frictionForceMagnitude = YamlConfigManager.Config.physics.friction_coefficient * trainMass * Physics.gravity.magnitude;
+        frictionForceMagnitude = FrictionManager.coffecient * trainMass * Physics.gravity.magnitude;
         frictionForce = frictionForceMagnitude * (-direction);
         expectedAcceleration = 0f;
         previousVelocity = 0f;
@@ -234,11 +238,11 @@ public class TrainController : MonoBehaviour
         currCoords = transform.position;
         float distanceRemaining = Vector3.Distance(transform.position, currEndCoords);
         speed = Vector3.Dot(rb.linearVelocity, direction);
-        if (state != TrainState.Stop)
-        {
-            TuneFriction();
-        }
-        else
+        // if (state != TrainState.Stop)
+        // {
+        //     TuneFriction();
+        // }
+        if (state == TrainState.Stop)
         {
             currHaltTime--;
         }
@@ -270,19 +274,54 @@ public class TrainController : MonoBehaviour
     {
         if (distanceRemaining > stoppingDistance)
         {
+            Debug.Log("Speed: " + speed + ", Friction: " + frictionForceMagnitude);
             float maxForce = Mathf.Clamp(maxPower / (speed + Mathf.Epsilon), 0f, trainMass * maxAcceleration + frictionForceMagnitude);
-            if (speed < Mathf.Min(maxSpeed, requiredAvgSpeed))
+            if (maxForce > frictionForceMagnitude)
             {
-                rb.AddForce(direction * maxForce, ForceMode.Force);
-                float actualForce = maxForce - frictionForceMagnitude;
-                expectedAcceleration = actualForce / trainMass;
-                // Debug.Log("Force, Acceleration: " + actualForce + ", " + expectedAcceleration);
+                if (speed < Mathf.Min(maxSpeed, requiredAvgSpeed))
+                {
+                    rb.AddForce(direction * maxForce, ForceMode.Force);
+                    float actualForce = maxForce - frictionForceMagnitude;
+                    expectedAcceleration = actualForce / trainMass;
+                    Debug.Log("Force, Acceleration: " + actualForce + ", " + expectedAcceleration);
+                }
+                else
+                {
+                    rb.AddForce(-frictionForce, ForceMode.Force);
+                    expectedAcceleration = 0f;
+                    print("Stuck Here");
+                }
             }
-            else if (speed == maxSpeed && maxForce >= frictionForceMagnitude)
+            else
             {
-                rb.AddForce(-frictionForce, ForceMode.Force);
-                expectedAcceleration = 0f;
+                rb.AddForce(maxForce * direction, ForceMode.Force);
+                if (speed == 0)
+                {
+                    expectedAcceleration = 0;
+                }
+                else
+                {
+                    float actualForce = maxForce - frictionForceMagnitude;
+                    expectedAcceleration = actualForce / trainMass;
+                }
             }
+            // if (speed < Mathf.Min(maxSpeed, requiredAvgSpeed))
+            // {
+            //     rb.AddForce(direction * maxForce, ForceMode.Force);
+            //     float actualForce = maxForce - frictionForceMagnitude;
+            //     expectedAcceleration = actualForce / trainMass;
+            //     Debug.Log("Force, Acceleration: " + actualForce + ", " + expectedAcceleration);
+            // }
+            // else if (speed == maxSpeed && maxForce >= frictionForceMagnitude)
+            // {
+            //     rb.AddForce(-frictionForce, ForceMode.Force);
+            //     expectedAcceleration = 0f;
+            //     print("Stuck HERE");
+            // }
+            // else
+            // {
+            //     Debug.Log("Firction is too much");
+            // }
             requiredAvgSpeed = distanceRemaining / (currTimeAllocated - elapsedTime);
         }
         else
@@ -296,6 +335,7 @@ public class TrainController : MonoBehaviour
         if (distanceRemaining >= Mathf.Epsilon)
         {
             rb.AddForce(-direction * brakeForce, ForceMode.Force);
+            Debug.Log("Braking force: " + brakeForce);
         }
         else
         {

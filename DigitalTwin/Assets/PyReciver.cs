@@ -169,18 +169,27 @@ public class PyReceiver : MonoBehaviour
 
             Destroy(stationObj.GetComponent<Collider>());
         }
-
+        Debug.Log("stations spawned");
+        Track longestTrack = null;
+        float maxDistance = 0f;
         for (int i = 0; i < data.tracks.Count; i++)
         {
             Track track = data.tracks[i];
             Vector3 start = new Vector3(track.start[0] * 1000, 0, track.start[1] * 1000);
             Vector3 end = new Vector3(track.end[0] * 1000, 0, track.end[1] * 1000);
+            float distance = Vector3.Distance(start, end);
+
+            if (distance > maxDistance)
+            {
+                maxDistance = distance;
+                longestTrack = track;
+            }
             SpawnTrack(start, end, i);
         }
+        Debug.Log("testing friction values...");
+        FrictionManager.Initialise(longestTrack);
 
-        no_trains = data.trains;
-
-        for (int i = 0; i < no_trains; i++)
+        for (int i = 0; i < YamlConfigManager.Config.entities.trains; i++)
         {
             int port = 8081 + i;
             Thread udpThread = new Thread(() => StartUDPServer(port));
@@ -189,6 +198,12 @@ public class PyReceiver : MonoBehaviour
         }
 
         EnvironmentManager.Initialise(data.stations, data.tracks);
+        // while (FrictionManager.isRunning)
+        // {
+        //     Thread.Sleep(1000);
+        //     Debug.Log("FrictionManager running..." + FrictionManager.isRunning);
+        // }
+        Debug.Log("FrictionManager stopped running. Sending Ready signal...");
 
         using (UdpClient responseClient = new UdpClient())
         {
