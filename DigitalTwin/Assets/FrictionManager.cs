@@ -1,4 +1,6 @@
 using UnityEngine;
+using System.Text;
+using System.IO;
 
 class FrictionManager : MonoBehaviour
 {
@@ -47,6 +49,8 @@ class FrictionManager : MonoBehaviour
     [SerializeField]
     private float speed;
 
+    private static string csvFilePath = "Assets/friction.csv";
+
 
     private void Awake()
     {
@@ -61,6 +65,22 @@ class FrictionManager : MonoBehaviour
         }
     }
 
+    private static void InitializeCSV()
+    {
+        using (StreamWriter writer = new StreamWriter(csvFilePath, false))
+        {
+            writer.WriteLine("ElapsedTime,Friction");
+        }
+    }
+
+    private void WriteToCSV(float elapsedTime, float speed)
+    {
+        using (StreamWriter writer = new StreamWriter(csvFilePath, true))
+        {
+            writer.WriteLine($"{elapsedTime},{speed}");
+        }
+    }
+
     public static void Initialise(Track track)
     {
         startPoint = new Vector3(track.start[0] * 1000, YamlConfigManager.Config.train.height / 2, track.start[1] * 1000);
@@ -71,7 +91,7 @@ class FrictionManager : MonoBehaviour
         frictionForceMagnitude = coffecient * testBlockRb.mass * Physics.gravity.magnitude;
         frictionForce = frictionForceMagnitude * (-direction);
         previousVelocity = 0;
-        Debug.Log("Train created at: " + startPoint + " and moving towards: " + endPoint);
+        // InitializeCSV();
     }
 
     private static (GameObject gameObject, Rigidbody rigidbody) createTrain()
@@ -115,7 +135,6 @@ class FrictionManager : MonoBehaviour
     {
         float actualAcceleration = speed - previousVelocity;
         float error = expectedAcceleration - actualAcceleration;
-
         float error_sum = 0f;
         integralError += error;
         float derivativeError = error - previousError;
@@ -130,10 +149,10 @@ class FrictionManager : MonoBehaviour
         else
         {
             RunCount += 1;
-            if (RunCount > 5)
-            {
-                isRunning = false;
-            }
+            // if (RunCount > 5)
+            // {
+            //     isRunning = false;
+            // }
         }
         previousError = error;
     }
@@ -157,13 +176,11 @@ class FrictionManager : MonoBehaviour
                     testBlockRb.AddForce(direction * maxForce, ForceMode.Force);
                     float actualForce = maxForce - frictionForceMagnitude;
                     expectedAcceleration = actualForce / trainMass;
-                    Debug.Log("Force, Acceleration: " + actualForce + ", " + expectedAcceleration);
                 }
                 else
                 {
                     testBlockRb.AddForce(-frictionForce, ForceMode.Force);
                     expectedAcceleration = 0f;
-                    print("Stuck HERE");
                 }
             }
             else
@@ -180,7 +197,6 @@ class FrictionManager : MonoBehaviour
                 }
             }
             previousVelocity = speed;
-            Debug.Log("Speed: " + speed + " Friction: " + frictionForceMagnitude + " Force: " + frictionForce + " Acceleration: " + expectedAcceleration);
         }
         else
         {

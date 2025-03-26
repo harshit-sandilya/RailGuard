@@ -287,7 +287,7 @@ public class PyReceiver : MonoBehaviour
         rb.mass = YamlConfigManager.Config.train.mass;
         rb.useGravity = true;
         rb.linearDamping = 0;
-        rb.angularDamping = 0;
+        rb.angularDamping = 1f;
         rb.isKinematic = false;
 
         TrainController trainController = newTrain.AddComponent<TrainController>();

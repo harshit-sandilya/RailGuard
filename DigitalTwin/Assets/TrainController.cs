@@ -45,6 +45,7 @@ public class TrainController : MonoBehaviour
     [SerializeField] float stoppingDistance;
     [SerializeField] float speed;
     [SerializeField] float frictionForceMagnitude;
+    [SerializeField] float distanceRemaining;
 
     private float previousVelocity;
     private float expectedAcceleration;
@@ -92,20 +93,31 @@ public class TrainController : MonoBehaviour
 
 
         // NEW MODEL
-        EnvironmentManager.checkStationArray();
         int index = EnvironmentManager.isStation(new Vector3(currStartCoords.x, 0, currStartCoords.z));
         List<List<Vector3>> Route = EnvironmentManager.getRoute(index);
-        string routeString = string.Join(",", Route.ConvertAll(segment => $"[{segment[0]},{segment[1]}]"));
-        Debug.Log(routeString);
         List<Vector3> current = Route[0];
-        List<List<Vector3>> next = Route.GetRange(1, Route.Count - 1);
-        currStartCoords = new Vector3(current[0].x + length / 2, height / 2 + 1, current[0].z + width / 2);
-        currEndCoords = new Vector3(current[1].x - length / 2, height / 2 + 1, current[1].z - width / 2);
-        transform.position = currStartCoords;
+
+        List<List<Vector3>> Route2 = Route.GetRange(1, Route.Count - 1);
+        foreach (var route in Route2)
+        {
+            startCoords.Enqueue(new Vector3(route[0].x, height / 2 + 1, route[0].z));
+            endCoords.Enqueue(new Vector3(route[1].x, height / 2 + 1, route[1].z));
+            timeAllocated.Enqueue(5);
+            haltTime.Enqueue(20);
+        }
+        startCoords.Enqueue(currStartCoords);
+        endCoords.Enqueue(currEndCoords);
+        timeAllocated.Enqueue(currTimeAllocated);
+        haltTime.Enqueue(currHaltTime);
+
+        currStartCoords = new Vector3(current[0].x, height / 2 + 1, current[0].z);
+        currEndCoords = new Vector3(current[1].x, height / 2 + 1, current[1].z);
         direction = (currEndCoords - currStartCoords).normalized;
         transform.rotation = Quaternion.LookRotation(direction);
+        transform.position = currStartCoords + direction.normalized * length / 2;
+        currEndCoords = currEndCoords - direction.normalized * length / 2;
         currTimeAllocated = 5;
-        currHaltTime = 2;
+        currHaltTime = 20;
         Debug.Log("Train initialized with start coords: " + currStartCoords + " and end coords: " + currEndCoords + " to complete in " + currTimeAllocated + " seconds");
     }
 
@@ -224,6 +236,7 @@ public class TrainController : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody>();
+        rb.constraints = RigidbodyConstraints.FreezeRotation;
         Time.fixedDeltaTime = YamlConfigManager.Config.time.seconds;
         state = TrainState.Accelerate;
         frictionForceMagnitude = FrictionManager.coffecient * trainMass * Physics.gravity.magnitude;
@@ -236,15 +249,14 @@ public class TrainController : MonoBehaviour
     {
         float elapsedTime = Timer.elapsedSeconds - startTime;
         currCoords = transform.position;
-        float distanceRemaining = Vector3.Distance(transform.position, currEndCoords);
+        distanceRemaining = Vector3.Distance(transform.position, currEndCoords);
+        direction = (currEndCoords - transform.position).normalized;
         speed = Vector3.Dot(rb.linearVelocity, direction);
-        // if (state != TrainState.Stop)
-        // {
-        //     TuneFriction();
-        // }
+        Debug.DrawRay(transform.position, direction * 500, Color.red);
         if (state == TrainState.Stop)
         {
-            currHaltTime--;
+            currHaltTime = Mathf.Max(0f, currHaltTime - 1);
+            Debug.Log("Halt time remaining: " + currHaltTime);
         }
 
         switch (state)
@@ -274,7 +286,6 @@ public class TrainController : MonoBehaviour
     {
         if (distanceRemaining > stoppingDistance)
         {
-            Debug.Log("Speed: " + speed + ", Friction: " + frictionForceMagnitude);
             float maxForce = Mathf.Clamp(maxPower / (speed + Mathf.Epsilon), 0f, trainMass * maxAcceleration + frictionForceMagnitude);
             if (maxForce > frictionForceMagnitude)
             {
@@ -283,13 +294,11 @@ public class TrainController : MonoBehaviour
                     rb.AddForce(direction * maxForce, ForceMode.Force);
                     float actualForce = maxForce - frictionForceMagnitude;
                     expectedAcceleration = actualForce / trainMass;
-                    Debug.Log("Force, Acceleration: " + actualForce + ", " + expectedAcceleration);
                 }
                 else
                 {
                     rb.AddForce(-frictionForce, ForceMode.Force);
                     expectedAcceleration = 0f;
-                    print("Stuck Here");
                 }
             }
             else
@@ -332,16 +341,16 @@ public class TrainController : MonoBehaviour
 
     private void DecelerateTrain(float elapsedTime, float distanceRemaining)
     {
-        if (distanceRemaining >= Mathf.Epsilon)
+        if (distanceRemaining >= 7 + Mathf.Epsilon)
         {
             rb.AddForce(-direction * brakeForce, ForceMode.Force);
-            Debug.Log("Braking force: " + brakeForce);
         }
         else
         {
             state = TrainState.Stop;
             rb.linearVelocity = Vector3.zero;
             delayTime += (elapsedTime - currTimeAllocated);
+            Debug.Log("Triggered stop state");
         }
     }
 
@@ -356,6 +365,10 @@ public class TrainController : MonoBehaviour
                 currTimeAllocated = timeAllocated.Dequeue() - delayTime;
                 currStartCoords = startCoords.Dequeue();
                 currEndCoords = endCoords.Dequeue();
+                direction = (currEndCoords - currStartCoords).normalized;
+                transform.position = currStartCoords + direction.normalized * length / 2;
+                transform.rotation = Quaternion.LookRotation(direction);
+                requiredAvgSpeed = Vector3.Distance(currStartCoords, currEndCoords) / currTimeAllocated;
                 state = TrainState.Accelerate;
             }
             else
