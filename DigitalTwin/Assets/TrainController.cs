@@ -9,10 +9,10 @@ using System.Collections.Generic;
 
 public class TrainController : MonoBehaviour
 {
-    private Queue<Vector3> startCoords;
-    private Queue<Vector3> endCoords;
-    private Queue<float> timeAllocated;
-    private Queue<float> haltTime;
+    [SerializeField] Queue<Vector3> startCoords;
+    [SerializeField] Queue<Vector3> endCoords;
+    [SerializeField] Queue<float> timeAllocated;
+    [SerializeField] Queue<float> haltTime;
 
     private Vector3 currStartCoords;
     private Vector3 currEndCoords;
@@ -41,6 +41,7 @@ public class TrainController : MonoBehaviour
     private Vector3 direction;
     private Vector3 frictionForce;
     private Vector3 currCoords;
+    private Vector3 prevCoords;
 
     [SerializeField] float stoppingDistance;
     [SerializeField] float speed;
@@ -95,17 +96,18 @@ public class TrainController : MonoBehaviour
         // NEW MODEL
         int index = EnvironmentManager.isStation(new Vector3(currStartCoords.x, 0, currStartCoords.z));
         List<List<Vector3>> Route = EnvironmentManager.getRoute(index);
+        Debug.Log("Route: " + Route.Count);
         List<Vector3> current = Route[0];
 
-        List<List<Vector3>> Route2 = Route.GetRange(1, Route.Count - 1);
-        foreach (var route in Route2)
+        Route = Route.GetRange(1, Route.Count - 1);
+        foreach (var route in Route)
         {
             startCoords.Enqueue(new Vector3(route[0].x, height / 2 + 1, route[0].z));
             endCoords.Enqueue(new Vector3(route[1].x, height / 2 + 1, route[1].z));
             timeAllocated.Enqueue(5);
             haltTime.Enqueue(20);
         }
-        startCoords.Enqueue(currStartCoords);
+        startCoords.Enqueue(new Vector3(Route[Route.Count - 1][1].x, height / 2 + 1, Route[Route.Count - 1][1].z));
         endCoords.Enqueue(currEndCoords);
         timeAllocated.Enqueue(currTimeAllocated);
         haltTime.Enqueue(currHaltTime);
@@ -115,10 +117,11 @@ public class TrainController : MonoBehaviour
         direction = (currEndCoords - currStartCoords).normalized;
         transform.rotation = Quaternion.LookRotation(direction);
         transform.position = currStartCoords + direction.normalized * length / 2;
-        currEndCoords = currEndCoords - direction.normalized * length / 2;
+        // currEndCoords = currEndCoords - direction.normalized * length / 2;
         currTimeAllocated = 5;
         currHaltTime = 20;
-        Debug.Log("Train initialized with start coords: " + currStartCoords + " and end coords: " + currEndCoords + " to complete in " + currTimeAllocated + " seconds");
+        prevCoords = transform.position;
+        Debug.Log("Train initialized with start coords: " + currStartCoords + " and end coords: " + currEndCoords + " to complete in " + currTimeAllocated + " seconds and halt for " + currHaltTime + " seconds");
     }
 
     private void InitializeCSV()
@@ -236,6 +239,7 @@ public class TrainController : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody>();
+        rb.centerOfMass = new Vector3(0, -height / 4, 0);
         rb.constraints = RigidbodyConstraints.FreezeRotation;
         Time.fixedDeltaTime = YamlConfigManager.Config.time.seconds;
         state = TrainState.Accelerate;
@@ -251,8 +255,19 @@ public class TrainController : MonoBehaviour
         currCoords = transform.position;
         distanceRemaining = Vector3.Distance(transform.position, currEndCoords);
         direction = (currEndCoords - transform.position).normalized;
+        Vector3 perpendicularDirection = new Vector3(direction.z, direction.y, -direction.x);
         speed = Vector3.Dot(rb.linearVelocity, direction);
         Debug.DrawRay(transform.position, direction * 500, Color.red);
+        Debug.DrawRay(transform.position, perpendicularDirection * 200, Color.green);
+
+        Vector3 shift = currCoords - prevCoords;
+        Vector3 shiftPerpendicular = Vector3.Project(shift, perpendicularDirection);
+
+        if (shiftPerpendicular.magnitude > 0.1f)
+        {
+            transform.position = currCoords - shiftPerpendicular;
+        }
+
         if (state == TrainState.Stop)
         {
             currHaltTime = Mathf.Max(0f, currHaltTime - 1);
@@ -280,13 +295,14 @@ public class TrainController : MonoBehaviour
             frictionForceMagnitude = frictionForce.magnitude;
             previousVelocity = speed;
         }
+        prevCoords = transform.position;
     }
 
     private void AccelerateTrain(float elapsedTime, float distanceRemaining, float speed)
     {
         if (distanceRemaining > stoppingDistance)
         {
-            float maxForce = Mathf.Clamp(maxPower / (speed + Mathf.Epsilon), 0f, trainMass * maxAcceleration + frictionForceMagnitude);
+            float maxForce = Mathf.Clamp(maxPower / (Mathf.Max(speed, 0) + Mathf.Epsilon), 0f, trainMass * maxAcceleration + frictionForceMagnitude);
             if (maxForce > frictionForceMagnitude)
             {
                 if (speed < Mathf.Min(maxSpeed, requiredAvgSpeed))
@@ -306,7 +322,7 @@ public class TrainController : MonoBehaviour
                 rb.AddForce(maxForce * direction, ForceMode.Force);
                 if (speed == 0)
                 {
-                    expectedAcceleration = 0;
+                    expectedAcceleration = 0f;
                 }
                 else
                 {
@@ -314,6 +330,7 @@ public class TrainController : MonoBehaviour
                     expectedAcceleration = actualForce / trainMass;
                 }
             }
+            Debug.Log("Train Accelerating with force: " + maxForce + " and acceleration: " + expectedAcceleration + " force:" + (maxForce > frictionForceMagnitude) + " speed:" + (speed < Mathf.Min(maxSpeed, requiredAvgSpeed)));
             // if (speed < Mathf.Min(maxSpeed, requiredAvgSpeed))
             // {
             //     rb.AddForce(direction * maxForce, ForceMode.Force);
@@ -362,14 +379,17 @@ public class TrainController : MonoBehaviour
             {
                 startTime = Timer.elapsedSeconds;
                 currHaltTime = haltTime.Dequeue();
-                currTimeAllocated = timeAllocated.Dequeue() - delayTime;
+                currTimeAllocated = Mathf.Max(timeAllocated.Dequeue() - delayTime, 1);
                 currStartCoords = startCoords.Dequeue();
                 currEndCoords = endCoords.Dequeue();
                 direction = (currEndCoords - currStartCoords).normalized;
                 transform.position = currStartCoords + direction.normalized * length / 2;
                 transform.rotation = Quaternion.LookRotation(direction);
+                prevCoords = transform.position;
                 requiredAvgSpeed = Vector3.Distance(currStartCoords, currEndCoords) / currTimeAllocated;
                 state = TrainState.Accelerate;
+                rb.linearVelocity = Vector3.zero;
+                Debug.Log("Train initialized with start coords: " + currStartCoords + " and end coords: " + currEndCoords + " to complete in " + currTimeAllocated + " seconds and halt for " + currHaltTime + " seconds");
             }
             else
             {
