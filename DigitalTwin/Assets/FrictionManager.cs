@@ -149,10 +149,10 @@ class FrictionManager : MonoBehaviour
         else
         {
             RunCount += 1;
-            // if (RunCount > 5)
-            // {
-            //     isRunning = false;
-            // }
+            if (RunCount > 5)
+            {
+                isRunning = false;
+            }
         }
         previousError = error;
     }

@@ -121,6 +121,8 @@ public class TrainController : MonoBehaviour
         currTimeAllocated = 5;
         currHaltTime = 20;
         prevCoords = transform.position;
+        requiredAvgSpeed = Vector3.Distance(currStartCoords, currEndCoords) / currTimeAllocated;
+        state = TrainState.Accelerate;
         Debug.Log("Train initialized with start coords: " + currStartCoords + " and end coords: " + currEndCoords + " to complete in " + currTimeAllocated + " seconds and halt for " + currHaltTime + " seconds");
     }
 
@@ -271,7 +273,6 @@ public class TrainController : MonoBehaviour
         if (state == TrainState.Stop)
         {
             currHaltTime = Mathf.Max(0f, currHaltTime - 1);
-            Debug.Log("Halt time remaining: " + currHaltTime);
         }
 
         switch (state)
@@ -330,7 +331,8 @@ public class TrainController : MonoBehaviour
                     expectedAcceleration = actualForce / trainMass;
                 }
             }
-            Debug.Log("Train Accelerating with force: " + maxForce + " and acceleration: " + expectedAcceleration + " force:" + (maxForce > frictionForceMagnitude) + " speed:" + (speed < Mathf.Min(maxSpeed, requiredAvgSpeed)));
+            requiredAvgSpeed = distanceRemaining / Mathf.Max((currTimeAllocated - elapsedTime), 0.1f);
+            Debug.Log("Train Accelerating with force: " + maxForce + " and acceleration: " + expectedAcceleration + " force:" + (maxForce > frictionForceMagnitude) + " speed:" + (speed < Mathf.Min(maxSpeed, requiredAvgSpeed)) + " avg:" + requiredAvgSpeed);
             // if (speed < Mathf.Min(maxSpeed, requiredAvgSpeed))
             // {
             //     rb.AddForce(direction * maxForce, ForceMode.Force);
@@ -348,7 +350,6 @@ public class TrainController : MonoBehaviour
             // {
             //     Debug.Log("Firction is too much");
             // }
-            requiredAvgSpeed = distanceRemaining / (currTimeAllocated - elapsedTime);
         }
         else
         {
@@ -367,7 +368,6 @@ public class TrainController : MonoBehaviour
             state = TrainState.Stop;
             rb.linearVelocity = Vector3.zero;
             delayTime += (elapsedTime - currTimeAllocated);
-            Debug.Log("Triggered stop state");
         }
     }
 
