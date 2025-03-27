@@ -198,11 +198,13 @@ public class PyReceiver : MonoBehaviour
         }
 
         EnvironmentManager.Initialise(data.stations, data.tracks);
-        // while (FrictionManager.isRunning)
-        // {
-        //     Thread.Sleep(1000);
-        //     Debug.Log("FrictionManager running..." + FrictionManager.isRunning);
-        // }
+        StartCoroutine(WaitForFrictionManagerCoroutine(senderEndPoint));
+    }
+
+    private IEnumerator<UnityEngine.WaitUntil> WaitForFrictionManagerCoroutine(IPEndPoint senderEndPoint)
+    {
+        yield return new WaitUntil(() => !FrictionManager.isRunning);
+
         Debug.Log("FrictionManager stopped running. Sending Ready signal...");
 
         using (UdpClient responseClient = new UdpClient())
