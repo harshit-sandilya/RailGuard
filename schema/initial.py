@@ -16,4 +16,3 @@ class Track(BaseModel):
 class InitialData(BaseModel):
     stations: List[Station]
     tracks: List[Track]
-    trains: int

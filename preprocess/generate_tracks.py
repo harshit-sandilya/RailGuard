@@ -7,10 +7,19 @@ from schema.initial import Station, Track
 def take_gap(prev, curr, next, gap_distance):
     mid_point1 = ((prev[0] + curr[0]) / 2, (prev[1] + curr[1]) / 2)
     mid_point2 = ((curr[0] + next[0]) / 2, (curr[1] + next[1]) / 2)
-    tan_angle = (next[1] - prev[1]) / (next[0] - prev[0])
-    perpendicular_angle = -1 / tan_angle
-    dx = math.sqrt(gap_distance**2 / (1 + perpendicular_angle**2))
-    dy = perpendicular_angle * dx
+    if next[0] - prev[0] == 0:
+        # vertical line
+        dx = 0
+        dy = gap_distance
+    elif next[1] - prev[1] == 0:
+        # horizontal line
+        dx = gap_distance
+        dy = 0
+    else:
+        tan_angle = (next[1] - prev[1]) / (next[0] - prev[0])
+        perpendicular_angle = -1 / tan_angle
+        dx = math.sqrt(gap_distance**2 / (1 + perpendicular_angle**2))
+        dy = perpendicular_angle * dx
     mid_point1 = (mid_point1[0] + dx, mid_point1[1] + dy)
     mid_point2 = (mid_point2[0] + dx, mid_point2[1] + dy)
     return ((prev, mid_point1), (mid_point1, mid_point2), (mid_point2, next))
@@ -60,9 +69,9 @@ def get_tracks(
     for i in range(len(tracks_points)):
         tracks_points[i] = add_distance(tracks_points[i], train_length)
     station_coords = [tuple(station.coords) for station in stations]
-    print("==============================")
-    print(tracks_points)
-    print("==============================")
+    # print("==============================")
+    # print(tracks_points)
+    # print("==============================")
     station_segments = set()
     for point in tracks_points:
         if point[1][0] in station_coords:
@@ -70,7 +79,7 @@ def get_tracks(
             # print(point[1][0])
             generated = take_gap(point[0][0], point[1][0], point[2][0], gap_distance)
             station_segments.add(generated)
-            print(generated)
+            # print(generated)
             # print("==============================")
         if point[3][1] in station_coords:
             # print("==============================")
@@ -93,4 +102,7 @@ def get_tracks(
     tracks = list(tracks)
     tracks = sorted(tracks, key=lambda x: (x[0], x[1]))
     tracks = [Track(start=track[0], end=track[1]) for track in tracks]
+    print("==============================")
+    print(tracks)
+    print("==============================")
     return tracks

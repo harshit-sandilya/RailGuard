@@ -23,6 +23,30 @@ class TimerFormat(BaseModel):
             other.seconds,
         )
 
+    def __eq__(self, other):
+        return (self.day, self.hours, self.minutes, self.seconds) == (
+            other.day,
+            other.hours,
+            other.minutes,
+            other.seconds,
+        )
+
+    def __ge__(self, other):
+        return (self.day, self.hours, self.minutes, self.seconds) >= (
+            other.day,
+            other.hours,
+            other.minutes,
+            other.seconds,
+        )
+
+    def __le__(self, other):
+        return (self.day, self.hours, self.minutes, self.seconds) <= (
+            other.day,
+            other.hours,
+            other.minutes,
+            other.seconds,
+        )
+
     def __sub__(self, other):
         total_seconds_self = (
             self.day * 86400 + self.hours * 3600 + self.minutes * 60 + self.seconds

@@ -13,7 +13,6 @@ def mean(arr):
 
 
 def get_initial_data(train_data: List[dict], BASE_DIR) -> InitialData:
-    no_trains = len(train_data)
     with open(f"{BASE_DIR}/stations.json") as f:
         stations = json.load(f)
     data = []
@@ -34,6 +33,5 @@ def get_initial_data(train_data: List[dict], BASE_DIR) -> InitialData:
         (config.train.length * 2) / 1000,
         (config.station.width * 4) / 1000,
     )
-    data = InitialData(stations=stations, tracks=tracks, trains=no_trains)
-    data.tracks
+    data = InitialData(stations=stations, tracks=tracks)
     return data

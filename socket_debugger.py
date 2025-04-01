@@ -81,7 +81,9 @@ def start_udp_servers(train_count):
     udp_threads = []
     for i in range(train_count):
         udp_port = 8081 + i
-        udp_thread = threading.Thread(target=start_udp_server, args=(udp_port,), daemon=True)
+        udp_thread = threading.Thread(
+            target=start_udp_server, args=(udp_port,), daemon=True
+        )
         udp_threads.append(udp_thread)
         udp_thread.start()
         print(f"[Main] [+] Started UDP server on port {udp_port}")

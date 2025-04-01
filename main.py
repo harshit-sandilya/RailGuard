@@ -9,6 +9,7 @@ from trains_socket import TIMER, TrainSocket
 HOST = "127.0.0.1"
 PORT = 8080
 
+
 def send_initial_data(train_data, BASE_DIR):
     """Sends the InitialData to Unity and waits until Unity is ready."""
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as client_socket:
@@ -16,7 +17,7 @@ def send_initial_data(train_data, BASE_DIR):
         client_socket.settimeout(5)
         initial_data = get_initial_data(train_data, BASE_DIR=BASE_DIR)
         initial_data = initial_data.model_dump_json()
-        multicast_group = ('224.0.0.1', PORT)
+        multicast_group = ("224.0.0.1", PORT)
         print("Sending InitialData to Unity...")
         client_socket.sendto(initial_data.encode("utf-8"), multicast_group)
         print("Sent InitialData to Unity. Waiting for Unity to get ready...")
@@ -35,7 +36,7 @@ def send_initial_data(train_data, BASE_DIR):
                 print(f"Error while receiving data: {e}")
                 break
 
-        return False
+        return True
 
 
 def main():

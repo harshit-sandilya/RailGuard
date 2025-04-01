@@ -4,6 +4,8 @@
     "train_name": "THTPBXRMWDRHXZ",
     "type": "NZZGI",
     "avg_speed": 80,
+    "start_time": "0:20:00",
+    "end_time": "1:14:00",
     "schedules": [
       {
         "station": "RNITZVH",
@@ -50,6 +52,8 @@
     "train_name": "WYTKRYCDAPGLYZRUOI",
     "type": "MSTKL",
     "avg_speed": 73,
+    "start_time": "0:10:00",
+    "end_time": "1:10:00",
     "schedules": [
       {
         "station": "RNITZVH",

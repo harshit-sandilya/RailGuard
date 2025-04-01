@@ -3,31 +3,31 @@
     "train_no": 12245,
     "train_name": "ZXCVBNMASDFGHJ",
     "type": "NZZGI",
-    "avg_speed": 20,
+    "avg_speed": 18,
     "start_time": "0:5:0",
-    "end_time": "0:23:00",
+    "end_time": "0:30:34",
     "schedules": [
       {
         "station": "QWERTYU",
         "station_code": "QWE",
         "arrival_day": 0,
         "departure_day": 0,
-        "arrival": "0:11:00",
-        "departure": "0:14:00"
+        "arrival": "0:9:42",
+        "departure": "0:11:42"
       }
     ],
     "coordinates": [
       [
         0,
-        0
+        4
       ],
       [
-        2,
-        0
+        1,
+        5
       ],
       [
         5,
-        0
+        9
       ]
     ]
   },
@@ -35,31 +35,31 @@
     "train_no": 54321,
     "train_name": "LKJHGFDSAMNBVCX",
     "type": "NZZGI",
-    "avg_speed": 20,
+    "avg_speed": 36,
     "start_time": "0:10:0",
-    "end_time": "0:27:00",
+    "end_time": "0:23:47",
     "schedules": [
       {
         "station": "POIUYT",
         "station_code": "POI",
         "arrival_day": 0,
         "departure_day": 0,
-        "arrival": "0:19:00",
-        "departure": "0:21:00"
+        "arrival": "0:14:42",
+        "departure": "0:16:42"
       }
     ],
     "coordinates": [
       [
-        0,
-        0
+        5,
+        9
       ],
       [
         3,
-        0
+        7
       ],
       [
-        5,
-        0
+        0,
+        4
       ]
     ]
   }
