@@ -45,6 +45,50 @@ def add_distance(points, distance):
     )
 
 
+def on_line(point, line_start, line_end):
+    """Check if a point is on a line segment defined by two endpoints"""
+    x, y = point
+    x1, y1 = line_start
+    x2, y2 = line_end
+
+    if not (min(x1, x2) <= x <= max(x1, x2) and min(y1, y2) <= y <= max(y1, y2)):
+        return False
+    cross_product = (y - y1) * (x2 - x1) - (x - x1) * (y2 - y1)
+    return abs(cross_product) < 1e-9
+
+
+def filter_track_points(track_points):
+    """Filter track points to remove duplicates and sort them"""
+    all_points = set()
+    for segment in track_points:
+        all_points.add(segment[0])
+        all_points.add(segment[1])
+    all_points = sorted(all_points)
+
+    result = []
+
+    for segment in track_points:
+        start, end = segment
+        intermediate_points = []
+
+        for point in all_points:
+            if point != start and point != end and on_line(point, start, end):
+                intermediate_points.append(point)
+        if not intermediate_points:
+            result.append(segment)
+        else:
+            intermediate_points.sort(
+                key=lambda p: ((p[0] - start[0]) ** 2 + (p[1] - start[1]) ** 2) ** 0.5
+            )
+            prev_point = start
+            for point in intermediate_points:
+                result.append((prev_point, point))
+                prev_point = point
+            result.append((prev_point, end))
+    unique_result = set(tuple(sorted((a, b))) for a, b in result)
+    return sorted(unique_result)
+
+
 def get_tracks(
     stations: List[Station],
     train_data: List[dict],
@@ -63,15 +107,17 @@ def get_tracks(
                 unique_tracks_points.add((tuple(track[i]), tuple(track[i + 1])))
     tracks_points = list(unique_tracks_points)
     tracks_points = sorted(tracks_points, key=lambda x: (x[0][0], x[0][1]))
+    tracks_points = filter_track_points(tracks_points)
     # print("==============================")
     # print(tracks_points)
     # print("==============================")
+
     for i in range(len(tracks_points)):
         tracks_points[i] = add_distance(tracks_points[i], train_length)
-    station_coords = [tuple(station.coords) for station in stations]
     # print("==============================")
     # print(tracks_points)
     # print("==============================")
+    station_coords = [tuple(station.coords) for station in stations]
     station_segments = set()
     for point in tracks_points:
         if point[1][0] in station_coords:
@@ -102,7 +148,7 @@ def get_tracks(
     tracks = list(tracks)
     tracks = sorted(tracks, key=lambda x: (x[0], x[1]))
     tracks = [Track(start=track[0], end=track[1]) for track in tracks]
-    print("==============================")
-    print(tracks)
-    print("==============================")
+    # print("==============================")
+    # print(tracks)
+    # print("==============================")
     return tracks

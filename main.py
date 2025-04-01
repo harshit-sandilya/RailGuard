@@ -36,7 +36,7 @@ def send_initial_data(train_data, BASE_DIR):
                 print(f"Error while receiving data: {e}")
                 break
 
-        return True
+        return False
 
 
 def main():

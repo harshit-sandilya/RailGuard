@@ -300,8 +300,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Scene\u200B"
   m_Pos:
     serializedVersion: 2
-    x: 257.5
-    y: 64
+    x: 254.5
+    y: 24
     width: 816
     height: 407
   m_SerializedDataModeController:
@@ -824,7 +824,7 @@ MonoBehaviour:
   m_Rotation:
     m_Target: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
     speed: 2
-    m_Value: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
+    m_Value: {x: -0.7071068, y: 0, z: -0, w: -0.7071068}
   m_Size:
     m_Target: 3365.4487
     speed: 2
@@ -880,8 +880,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Hierarchy\u200B"
   m_Pos:
     serializedVersion: 2
-    x: 4
-    y: 64
+    x: 0
+    y: 24
     width: 252.5
     height: 407
   m_SerializedDataModeController:
@@ -1099,8 +1099,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Console\u200B"
   m_Pos:
     serializedVersion: 2
-    x: 4
-    y: 497
+    x: 0
+    y: 457
     width: 1070.5
     height: 272
   m_SerializedDataModeController:
@@ -1135,8 +1135,8 @@ MonoBehaviour:
     m_TextWithWhitespace: "Inspector\u200B"
   m_Pos:
     serializedVersion: 2
-    x: 1075.5
-    y: 64
+    x: 1072.5
+    y: 24
     width: 363.5
     height: 705
   m_SerializedDataModeController:
