@@ -1,5 +1,4 @@
 using UnityEngine;
-using System.Text;
 using System.IO;
 
 class FrictionManager : MonoBehaviour
@@ -142,7 +141,7 @@ class FrictionManager : MonoBehaviour
         error_sum = Mathf.Clamp(error, -0.01f, 0.01f);
         if (error_sum > Mathf.Epsilon || error_sum < -Mathf.Epsilon)
         {
-            frictionForceMagnitude += (error_sum * testBlockRb.mass);
+            frictionForceMagnitude += error_sum * testBlockRb.mass;
             coffecient = frictionForceMagnitude / (testBlockRb.mass * Physics.gravity.magnitude);
             frictionForce = frictionForceMagnitude * (-direction);
         }

@@ -96,11 +96,11 @@ public class EnvironmentManager : MonoBehaviour
 
             stations[i] = stationObj;
 
-            Debug.Log($"Station: {station.name} has {stationObj.routes.Count} routes");
-            foreach (var routeList in stationObj.routes)
-            {
-                Debug.Log("Route: " + string.Join(" -> ", routeList.ConvertAll(segment => segment[0].ToString())) + " -> " + routeList[routeList.Count - 1][1]);
-            }
+            // Debug.Log($"Station: {station.name} has {stationObj.routes.Count} routes");
+            // foreach (var routeList in stationObj.routes)
+            // {
+            //     Debug.Log("Route: " + string.Join(" -> ", routeList.ConvertAll(segment => segment[0].ToString())) + " -> " + routeList[routeList.Count - 1][1]);
+            // }
         }
     }
 
@@ -124,8 +124,27 @@ public class EnvironmentManager : MonoBehaviour
         return -1;
     }
 
-    public static List<List<Vector3>> getRoute(int stationIndex)
+    public static List<List<Vector3>> getRoute(int stationIndex, Vector3 direction)
     {
-        return stations[stationIndex].routes.Count > 1 ? stations[stationIndex].routes[1] : new List<List<Vector3>>();
+        Vector3 station_dir = stations[stationIndex].routes[0][0][1] - stations[stationIndex].routes[0][0][0];
+        Vector3 station_dir_normalized = station_dir.normalized;
+        Vector3 direction_normalized = direction.normalized;
+        float angle = Vector3.Angle(station_dir_normalized, direction_normalized);
+        if (angle < 90)
+        {
+            return stations[stationIndex].routes[1];
+        }
+        else
+        {
+            List<List<Vector3>> reversedRoute = new List<List<Vector3>>(stations[stationIndex].routes[1]);
+            reversedRoute.Reverse();
+            for (int i = 0; i < reversedRoute.Count; i++)
+            {
+                List<Vector3> segment = new List<Vector3>(reversedRoute[i]);
+                segment.Reverse();
+                reversedRoute[i] = segment;
+            }
+            return reversedRoute;
+        }
     }
 }

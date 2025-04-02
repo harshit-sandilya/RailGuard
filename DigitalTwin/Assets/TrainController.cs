@@ -9,16 +9,16 @@ using System.Collections.Generic;
 
 public class TrainController : MonoBehaviour
 {
-    [SerializeField] Queue<Vector3> startCoords;
-    [SerializeField] Queue<Vector3> endCoords;
-    [SerializeField] Queue<float> timeAllocated;
-    [SerializeField] Queue<float> haltTime;
+    private Queue<Vector3> startCoords;
+    private Queue<Vector3> endCoords;
+    private Queue<float> timeAllocated;
+    private Queue<float> haltTime;
 
-    private Vector3 currStartCoords;
-    private Vector3 currEndCoords;
-    private float currTimeAllocated;
-    private float currHaltTime;
-    private float requiredAvgSpeed;
+    [SerializeField] Vector3 currStartCoords;
+    [SerializeField] Vector3 currEndCoords;
+    [SerializeField] float currTimeAllocated;
+    [SerializeField] float currHaltTime;
+    [SerializeField] float requiredAvgSpeed;
 
     private Rigidbody rb;
     private UdpClient udpClient;
@@ -72,11 +72,7 @@ public class TrainController : MonoBehaviour
         currEndCoords = new Vector3(trainData.end_coords[0] * 1000, YamlConfigManager.Config.train.height / 2, trainData.end_coords[1] * 1000);
         currTimeAllocated = trainData.time_allocated;
         currHaltTime = trainData.halt_time;
-        float totalDistance = Vector3.Distance(currStartCoords, currEndCoords);
-        requiredAvgSpeed = totalDistance / currTimeAllocated;
-        direction = (currEndCoords - currStartCoords).normalized;
 
-        startTime = Timer.elapsedSeconds;
         this.port = port;
         udpClient = new UdpClient();
         udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
@@ -92,73 +88,115 @@ public class TrainController : MonoBehaviour
 
 
         // NEW MODEL
-        int index = EnvironmentManager.isStation(new Vector3(currStartCoords.x, 0, currStartCoords.z));
+        int index = EnvironmentManager.isStation(new Vector3(currEndCoords.x, 0, currEndCoords.z));
         if (index != -1)
         {
-            coordsRoute(index);
+            endStation(index);
         }
+        index = EnvironmentManager.isStation(new Vector3(currStartCoords.x, 0, currStartCoords.z));
+        if (index != -1)
+        {
+            initStartStation(index);
+        }
+        float totalDistance = Vector3.Distance(currStartCoords, currEndCoords);
+        requiredAvgSpeed = totalDistance / currTimeAllocated;
+        direction = (currEndCoords - currStartCoords).normalized;
+        transform.rotation = Quaternion.LookRotation(direction);
+        transform.position = currStartCoords;
         prevCoords = transform.position;
         requiredAvgSpeed = Vector3.Distance(currStartCoords, currEndCoords) / currTimeAllocated;
         state = TrainState.Accelerate;
+        startTime = Timer.elapsedSeconds;
         Debug.Log("Train initialized with start coords: " + currStartCoords + " and end coords: " + currEndCoords + " to complete in " + currTimeAllocated + " seconds and halt for " + currHaltTime + " seconds");
     }
 
-    private void coordsRoute(int index)
+    private Queue<T> addToQueueFront<T>(Queue<T> queue, Queue<T> previousQueue)
     {
-        List<List<Vector3>> Route = EnvironmentManager.getRoute(index);
-        Debug.Log("Route: " + Route.Count);
-        List<Vector3> current = Route[0];
+        Queue<T> tempQueue = new Queue<T>(queue);
+        foreach (T item in previousQueue)
+        {
+            tempQueue.Enqueue(item);
+        }
+        return tempQueue;
+    }
+
+    private void initStartStation(int index)
+    {
+        List<List<Vector3>> Routes = EnvironmentManager.getRoute(index, (currEndCoords - currStartCoords).normalized);
 
         Queue<Vector3> tempStartCoords = new Queue<Vector3>();
         Queue<Vector3> tempEndCoords = new Queue<Vector3>();
         Queue<float> tempTimeAllocated = new Queue<float>();
         Queue<float> tempHaltTime = new Queue<float>();
 
-        Route = Route.GetRange(1, Route.Count - 1);
-        foreach (var route in Route)
-        {
-            tempStartCoords.Enqueue(new Vector3(route[0].x, height / 2 + 1, route[0].z));
-            tempEndCoords.Enqueue(new Vector3(route[1].x, height / 2 + 1, route[1].z));
-            tempTimeAllocated.Enqueue(5);
-            tempHaltTime.Enqueue(20);
-        }
-        tempStartCoords.Enqueue(new Vector3(Route[Route.Count - 1][1].x, height / 2 + 1, Route[Route.Count - 1][1].z));
+        Vector3 startPoint = (Routes[1][0] + Routes[1][1]) / 2;
+        Vector3 endPoint = Routes[1][1];
+        float time = 2;
+        float hTime = 5;
+
+        tempStartCoords.Enqueue(Routes[2][0]);
+        tempEndCoords.Enqueue(Routes[2][1]);
+        tempTimeAllocated.Enqueue(5);
+        tempHaltTime.Enqueue(5);
+        tempStartCoords.Enqueue(Routes[2][1]);
         tempEndCoords.Enqueue(currEndCoords);
         tempTimeAllocated.Enqueue(currTimeAllocated);
         tempHaltTime.Enqueue(currHaltTime);
 
-        // Enqueue existing coordinates into temporary queues
-        foreach (Vector3 start in startCoords)
+        currStartCoords = new Vector3(startPoint.x, height / 2 + 1, startPoint.z);
+        currEndCoords = new Vector3(endPoint.x, height / 2 + 1, endPoint.z);
+        currTimeAllocated = time;
+        currHaltTime = hTime;
+        startCoords = addToQueueFront(tempStartCoords, startCoords);
+        endCoords = addToQueueFront(tempEndCoords, endCoords);
+        timeAllocated = addToQueueFront(tempTimeAllocated, timeAllocated);
+        haltTime = addToQueueFront(tempHaltTime, haltTime);
+    }
+
+    private void endStation(int index)
+    {
+        List<List<Vector3>> Routes = EnvironmentManager.getRoute(index, (currEndCoords - currStartCoords).normalized);
+        Queue<Vector3> tempStartCoords = new Queue<Vector3>();
+        Queue<Vector3> tempEndCoords = new Queue<Vector3>();
+        Queue<float> tempTimeAllocated = new Queue<float>();
+        Queue<float> tempHaltTime = new Queue<float>();
+
+        int mid = Routes.Count / 2;
+        for (int i = 0; i < Routes.Count; i++)
         {
-            tempStartCoords.Enqueue(start);
-        }
-        foreach (Vector3 end in endCoords)
-        {
-            tempEndCoords.Enqueue(end);
-        }
-        foreach (float time in timeAllocated)
-        {
-            tempTimeAllocated.Enqueue(time);
-        }
-        foreach (float halt in haltTime)
-        {
-            tempHaltTime.Enqueue(halt);
+            if (i == mid)
+            {
+                tempStartCoords.Enqueue(Routes[i][0]);
+                tempEndCoords.Enqueue((Routes[i][0] + Routes[i][1]) / 2);
+                tempTimeAllocated.Enqueue(5);
+                tempHaltTime.Enqueue(currHaltTime);
+                tempStartCoords.Enqueue((Routes[i][0] + Routes[i][1]) / 2);
+                tempEndCoords.Enqueue(Routes[i][1]);
+                tempTimeAllocated.Enqueue(5);
+                tempHaltTime.Enqueue(5);
+            }
+            else
+            {
+                tempStartCoords.Enqueue(Routes[i][0]);
+                tempEndCoords.Enqueue(Routes[i][1]);
+                tempTimeAllocated.Enqueue(5);
+                tempHaltTime.Enqueue(5);
+            }
         }
 
-        // Reassign the queues
-        startCoords = tempStartCoords;
-        endCoords = tempEndCoords;
-        timeAllocated = tempTimeAllocated;
-        haltTime = tempHaltTime;
+        currEndCoords = Routes[0][0];
+        currTimeAllocated = currTimeAllocated - 10;
+        currHaltTime = 5;
+        startCoords = addToQueueFront(tempStartCoords, startCoords);
+        endCoords = addToQueueFront(tempEndCoords, endCoords);
+        timeAllocated = addToQueueFront(tempTimeAllocated, timeAllocated);
+        haltTime = addToQueueFront(tempHaltTime, haltTime);
+    }
 
-        currStartCoords = new Vector3(current[0].x, height / 2 + 1, current[0].z);
-        currEndCoords = new Vector3(current[1].x, height / 2 + 1, current[1].z);
-        direction = (currEndCoords - currStartCoords).normalized;
-        transform.rotation = Quaternion.LookRotation(direction);
-        transform.position = currStartCoords + direction.normalized * length / 2;
-        // currEndCoords = currEndCoords - direction.normalized * length / 2;
-        currTimeAllocated = 5;
-        currHaltTime = 20;
+    private void startStation(int index)
+    {
+        List<List<Vector3>> Routes = EnvironmentManager.getRoute(index, (currEndCoords - currStartCoords).normalized);
+        currStartCoords = new Vector3(Routes[Routes.Count - 1][1].x, height / 2 + 1, Routes[Routes.Count - 1][1].z);
     }
 
     private void InitializeCSV()
@@ -255,24 +293,6 @@ public class TrainController : MonoBehaviour
         return Mathf.Pow(speed, 2) / (2 * maxDeceleration);
     }
 
-    private void TuneFriction()
-    {
-        float actualAcceleration = speed - previousVelocity;
-        float error = expectedAcceleration - actualAcceleration;
-
-        float error_sum = 0f;
-        integralError += error;
-        float derivativeError = error - previousError;
-        error_sum = Kp * error + Ki * integralError + Kd * derivativeError;
-        error_sum = Mathf.Clamp(error, -0.01f, 0.01f);
-        if (error_sum > Mathf.Epsilon || error_sum < -Mathf.Epsilon)
-        {
-            frictionForceMagnitude += (error_sum * trainMass);
-            frictionForce = frictionForceMagnitude * (-direction);
-        }
-        previousError = error;
-    }
-
     void Start()
     {
         rb = GetComponent<Rigidbody>();
@@ -317,7 +337,7 @@ public class TrainController : MonoBehaviour
                 break;
 
             case TrainState.Decelerate:
-                DecelerateTrain(elapsedTime, distanceRemaining);
+                DecelerateTrain(elapsedTime, distanceRemaining, speed);
                 break;
 
             case TrainState.Stop:
@@ -336,7 +356,8 @@ public class TrainController : MonoBehaviour
 
     private void AccelerateTrain(float elapsedTime, float distanceRemaining, float speed)
     {
-        if (distanceRemaining > stoppingDistance)
+        // Debug.Log($"{distanceRemaining}: Train is accelerating");
+        if (distanceRemaining > stoppingDistance + length / 4)
         {
             float maxForce = Mathf.Clamp(maxPower / (Mathf.Max(speed, 0) + Mathf.Epsilon), 0f, trainMass * maxAcceleration + frictionForceMagnitude);
             if (maxForce > frictionForceMagnitude)
@@ -366,25 +387,7 @@ public class TrainController : MonoBehaviour
                     expectedAcceleration = actualForce / trainMass;
                 }
             }
-            requiredAvgSpeed = distanceRemaining / Mathf.Max((currTimeAllocated - elapsedTime), 0.1f);
-            // Debug.Log("Train Accelerating with force: " + maxForce + " and acceleration: " + expectedAcceleration + " force:" + (maxForce > frictionForceMagnitude) + " speed:" + (speed < Mathf.Min(maxSpeed, requiredAvgSpeed)) + " avg:" + requiredAvgSpeed);
-            // if (speed < Mathf.Min(maxSpeed, requiredAvgSpeed))
-            // {
-            //     rb.AddForce(direction * maxForce, ForceMode.Force);
-            //     float actualForce = maxForce - frictionForceMagnitude;
-            //     expectedAcceleration = actualForce / trainMass;
-            //     Debug.Log("Force, Acceleration: " + actualForce + ", " + expectedAcceleration);
-            // }
-            // else if (speed == maxSpeed && maxForce >= frictionForceMagnitude)
-            // {
-            //     rb.AddForce(-frictionForce, ForceMode.Force);
-            //     expectedAcceleration = 0f;
-            //     print("Stuck HERE");
-            // }
-            // else
-            // {
-            //     Debug.Log("Firction is too much");
-            // }
+            requiredAvgSpeed = distanceRemaining / Mathf.Max(currTimeAllocated - elapsedTime, 0.1f);
         }
         else
         {
@@ -392,17 +395,19 @@ public class TrainController : MonoBehaviour
         }
     }
 
-    private void DecelerateTrain(float elapsedTime, float distanceRemaining)
+    private void DecelerateTrain(float elapsedTime, float distanceRemaining, float speed)
     {
-        if (distanceRemaining >= 7 + Mathf.Epsilon)
+        // Debug.Log($"{distanceRemaining}: Train is decelerating");
+        if (distanceRemaining > length / 4)
         {
             rb.AddForce(-direction * brakeForce, ForceMode.Force);
         }
         else
         {
             state = TrainState.Stop;
+            transform.position = currEndCoords;
             rb.linearVelocity = Vector3.zero;
-            delayTime += (elapsedTime - currTimeAllocated);
+            // delayTime += elapsedTime - currTimeAllocated;
         }
     }
 
@@ -414,17 +419,23 @@ public class TrainController : MonoBehaviour
             {
                 startTime = Timer.elapsedSeconds;
                 currHaltTime = haltTime.Dequeue();
-                currTimeAllocated = Mathf.Max(timeAllocated.Dequeue() - delayTime, 1);
+                // currTimeAllocated = Mathf.Max(timeAllocated.Dequeue() - delayTime, 1);
+                currTimeAllocated = timeAllocated.Dequeue();
                 currStartCoords = startCoords.Dequeue();
                 currEndCoords = endCoords.Dequeue();
-                direction = (currEndCoords - currStartCoords).normalized;
-                transform.position = currStartCoords + direction.normalized * length / 2;
-                transform.rotation = Quaternion.LookRotation(direction);
-                int index = EnvironmentManager.isStation(new Vector3(currStartCoords.x, 0, currStartCoords.z));
+                int index = EnvironmentManager.isStation(new Vector3(currEndCoords.x, 0, currEndCoords.z));
                 if (index != -1)
                 {
-                    coordsRoute(index);
+                    endStation(index);
                 }
+                index = EnvironmentManager.isStation(new Vector3(currStartCoords.x, 0, currStartCoords.z));
+                if (index != -1)
+                {
+                    startStation(index);
+                }
+                direction = (currEndCoords - currStartCoords).normalized;
+                transform.position = currStartCoords;
+                transform.rotation = Quaternion.LookRotation(direction);
                 prevCoords = transform.position;
                 requiredAvgSpeed = Vector3.Distance(currStartCoords, currEndCoords) / currTimeAllocated;
                 state = TrainState.Accelerate;
