@@ -34,9 +34,7 @@ public class TrainController : MonoBehaviour
     private float trainMass = YamlConfigManager.Config.train.mass;
     private float brakeForce = YamlConfigManager.Config.train.brake_force;
     private float maxPower = YamlConfigManager.Config.train.hp * 745.7f;
-    private float Kp = YamlConfigManager.Config.control.pid.kp;
-    private float Ki = YamlConfigManager.Config.control.pid.ki;
-    private float Kd = YamlConfigManager.Config.control.pid.kd;
+    private float tractiveEffort = YamlConfigManager.Config.train.tractive_effort;
 
     private Vector3 direction;
     private Vector3 frictionForce;
@@ -47,11 +45,6 @@ public class TrainController : MonoBehaviour
     [SerializeField] float speed;
     [SerializeField] float frictionForceMagnitude;
     [SerializeField] float distanceRemaining;
-
-    private float previousVelocity;
-    private float expectedAcceleration;
-    private float integralError;
-    private float previousError;
 
     private float startTime;
     private float delayTime;
@@ -302,8 +295,6 @@ public class TrainController : MonoBehaviour
         state = TrainState.Accelerate;
         frictionForceMagnitude = FrictionManager.coffecient * trainMass * Physics.gravity.magnitude;
         frictionForce = frictionForceMagnitude * (-direction);
-        expectedAcceleration = 0f;
-        previousVelocity = 0f;
     }
 
     void FixedUpdate()
@@ -327,6 +318,8 @@ public class TrainController : MonoBehaviour
 
         if (state == TrainState.Stop)
         {
+            rb.linearVelocity = Vector3.zero;
+            transform.position = currEndCoords;
             currHaltTime = Mathf.Max(0f, currHaltTime - 1);
         }
 
@@ -348,8 +341,6 @@ public class TrainController : MonoBehaviour
         if (state != TrainState.Stop)
         {
             stoppingDistance = ComputeStoppingDistance(speed);
-            frictionForceMagnitude = frictionForce.magnitude;
-            previousVelocity = speed;
         }
         prevCoords = transform.position;
     }
@@ -360,32 +351,30 @@ public class TrainController : MonoBehaviour
         if (distanceRemaining > stoppingDistance + length / 4)
         {
             float maxForce = Mathf.Clamp(maxPower / (Mathf.Max(speed, 0) + Mathf.Epsilon), 0f, trainMass * maxAcceleration + frictionForceMagnitude);
+            // float maxForce = 0;
+            // if (speed < 0.1f)
+            // {
+            //     Debug.Log("Train is at rest, applying tractive effort: " + tractiveEffort + " and friction:" + frictionForceMagnitude);
+            //     maxForce = tractiveEffort;
+            // }
+            // else
+            // {
+            //     maxForce = maxPower / speed;
+            // }
             if (maxForce > frictionForceMagnitude)
             {
                 if (speed < Mathf.Min(maxSpeed, requiredAvgSpeed))
                 {
                     rb.AddForce(direction * maxForce, ForceMode.Force);
-                    float actualForce = maxForce - frictionForceMagnitude;
-                    expectedAcceleration = actualForce / trainMass;
                 }
                 else
                 {
                     rb.AddForce(-frictionForce, ForceMode.Force);
-                    expectedAcceleration = 0f;
                 }
             }
             else
             {
                 rb.AddForce(maxForce * direction, ForceMode.Force);
-                if (speed == 0)
-                {
-                    expectedAcceleration = 0f;
-                }
-                else
-                {
-                    float actualForce = maxForce - frictionForceMagnitude;
-                    expectedAcceleration = actualForce / trainMass;
-                }
             }
             requiredAvgSpeed = distanceRemaining / Mathf.Max(currTimeAllocated - elapsedTime, 0.1f);
         }
