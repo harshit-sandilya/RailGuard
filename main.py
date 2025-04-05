@@ -13,6 +13,8 @@ PORT = 8080
 def send_initial_data(train_data, BASE_DIR):
     """Sends the InitialData to Unity and waits until Unity is ready."""
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as client_socket:
+        # client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         client_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
         client_socket.settimeout(5)
         initial_data = get_initial_data(train_data, BASE_DIR=BASE_DIR)

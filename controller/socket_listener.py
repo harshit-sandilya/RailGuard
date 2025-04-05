@@ -2,11 +2,14 @@ import socket
 import struct
 import threading
 import json
+from schema import InitialData
+from .globals import environment
 
 TCP_HOST = "0.0.0.0"
 TCP_PORT = 8080
 isRunning = True
 udp_threads = []
+
 
 def start_tcp_server():
     """Handles the UDP connection for receiving InitialData"""
@@ -21,9 +24,9 @@ def start_tcp_server():
     server_socket.bind((TCP_HOST, TCP_PORT))
     server_socket.settimeout(5)
 
-    multicast_group = '224.0.0.1'
+    multicast_group = "224.0.0.1"
     group = socket.inet_aton(multicast_group)
-    mreq = struct.pack('4sL', group, socket.INADDR_ANY)
+    mreq = struct.pack("4sL", group, socket.INADDR_ANY)
     server_socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
     print(f"[UDP] Listening on {multicast_group}:{TCP_PORT}...")
 
@@ -40,10 +43,10 @@ def start_tcp_server():
 
             try:
                 json_data = json.loads(decoded_data)
-                train_count = json_data.get("trains", 0)
-                print(f"[UDP] [+] Number of trains: {train_count}")
-
-                start_udp_servers(train_count)
+                initData = InitialData(**json_data)
+                environment.initialise(initData)
+                print(f"[UDP] [+] InitialData object created: {initData}")
+                break
 
             except json.JSONDecodeError as e:
                 print(f"[UDP] [!] JSON decode error: {e}")
@@ -67,9 +70,9 @@ def start_udp_server(udp_port):
     udp_socket.bind((TCP_HOST, udp_port))
     udp_socket.settimeout(1)
 
-    multicast_group = '224.0.0.1'
+    multicast_group = "224.0.0.1"
     group = socket.inet_aton(multicast_group)
-    mreq = struct.pack('4sL', group, socket.INADDR_ANY)
+    mreq = struct.pack("4sL", group, socket.INADDR_ANY)
     udp_socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
     print(f"[UDP] Listening on {multicast_group}:{udp_port}...")
 
@@ -93,23 +96,34 @@ def start_udp_servers(train_count):
     """Starts multiple UDP servers dynamically based on the number of trains."""
     for i in range(train_count):
         udp_port = 8081 + i
-        udp_thread = threading.Thread(target=start_udp_server, args=(udp_port,), daemon=True)
+        udp_thread = threading.Thread(
+            target=start_udp_server, args=(udp_port,), daemon=True
+        )
         udp_threads.append(udp_thread)
         udp_thread.start()
         print(f"[Main] [+] Started UDP server on port {udp_port}")
 
 
-if __name__ == "__main__":
-    tcp_thread = threading.Thread(target=start_tcp_server, daemon=True)
-    tcp_thread.start()
+def stop_all_servers():
+    """Stops all servers gracefully."""
+    global isRunning
+    isRunning = False
+    for thread in udp_threads:
+        thread.join()
+    print("[Main] [+] All servers stopped.")
 
-    try:
-        while True:
-            pass
-    except KeyboardInterrupt:
-        print("\n[Main] [!] Stopping all servers...")
-        isRunning = False
-        for thread in udp_threads:
-            thread.join()
-        tcp_thread.join()
-        print("[Main] [+] All servers stopped.")
+
+# if __name__ == "__main__":
+#     tcp_thread = threading.Thread(target=start_tcp_server, daemon=True)
+#     tcp_thread.start()
+
+#     try:
+#         while True:
+#             pass
+#     except KeyboardInterrupt:
+#         print("\n[Main] [!] Stopping all servers...")
+#         isRunning = False
+#         for thread in udp_threads:
+#             thread.join()
+#         tcp_thread.join()
+#         print("[Main] [+] All servers stopped.")
