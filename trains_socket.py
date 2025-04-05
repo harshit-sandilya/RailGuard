@@ -5,7 +5,8 @@ import time
 from schema import TrainData
 from schema.timer import TimerFormat
 from utils import str_to_timer, timer_to_seconds
-from configObject import TIMER, TIME_SECOND
+from configObject import TIME_SECOND
+from timer_global import TIMER
 
 
 class TrainSocket(threading.Thread):

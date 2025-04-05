@@ -2,7 +2,8 @@ import json
 import socket
 import time
 
-from configObject import TIME_SECOND, TIMER, BASE_DIR
+from configObject import TIME_SECOND, BASE_DIR
+from timer_global import TIMER
 from get_initial_data import get_initial_data
 from trains_socket import TIMER, TrainSocket
 
