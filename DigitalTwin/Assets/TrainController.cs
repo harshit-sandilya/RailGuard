@@ -267,7 +267,8 @@ public class TrainController : MonoBehaviour
                 coords = currCoords,
                 speed = speed,
                 direction = direction,
-                delay = delayTime
+                delay = delayTime,
+                distanceRemaining = distanceRemaining,
             };
             string jsonString = JsonUtility.ToJson(gpsData);
             byte[] sendData = Encoding.UTF8.GetBytes(jsonString);

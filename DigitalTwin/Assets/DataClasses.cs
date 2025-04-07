@@ -42,4 +42,5 @@ public class GPSData
     public float speed;
     public Vector3 direction;
     public float delay;
+    public float distanceRemaining;
 }

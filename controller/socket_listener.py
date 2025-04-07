@@ -2,7 +2,7 @@ import socket
 import struct
 import threading
 import json
-from schema import InitialData
+from schema import InitialData, GPSData
 from .globals import environment
 
 TCP_HOST = "0.0.0.0"
@@ -45,7 +45,6 @@ def start_tcp_server():
                 json_data = json.loads(decoded_data)
                 initData = InitialData(**json_data)
                 environment.initialise(initData)
-                print(f"[UDP] [+] InitialData object created: {initData}")
                 break
 
             except json.JSONDecodeError as e:
@@ -84,6 +83,17 @@ def start_udp_server(udp_port):
             print(f"[UDP Port {udp_port}] [Received from {addr}]")
             print(decoded_data)
             print("==============================\n")
+
+            try:
+                json_data = json.loads(decoded_data)
+                gpsData = GPSData(**json_data)
+                environment.update_train(udp_port - 8081, gpsData)
+                print(
+                    f"[UDP Port {udp_port}] [+] GPS data updated for train {udp_port - 8081}"
+                )
+            except json.JSONDecodeError:
+                print(f"[UDP Port {udp_port}] [!] JSON decode error")
+
         except socket.timeout:
             continue
         except Exception as e:
@@ -94,6 +104,7 @@ def start_udp_server(udp_port):
 
 def start_udp_servers(train_count):
     """Starts multiple UDP servers dynamically based on the number of trains."""
+    environment.initialise_trains(train_count)
     for i in range(train_count):
         udp_port = 8081 + i
         udp_thread = threading.Thread(
@@ -111,19 +122,3 @@ def stop_all_servers():
     for thread in udp_threads:
         thread.join()
     print("[Main] [+] All servers stopped.")
-
-
-# if __name__ == "__main__":
-#     tcp_thread = threading.Thread(target=start_tcp_server, daemon=True)
-#     tcp_thread.start()
-
-#     try:
-#         while True:
-#             pass
-#     except KeyboardInterrupt:
-#         print("\n[Main] [!] Stopping all servers...")
-#         isRunning = False
-#         for thread in udp_threads:
-#             thread.join()
-#         tcp_thread.join()
-#         print("[Main] [+] All servers stopped.")
