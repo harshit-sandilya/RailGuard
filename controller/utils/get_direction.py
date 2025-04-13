@@ -26,7 +26,7 @@ def get_direction(direction: Vector3, route: List[Track]) -> bool:
         track_directions.append(get_unit_direction(track.start, track.end))
 
     for track_direction in track_directions:
-        if cosine_of_angle(track_direction, point) == 1:
-            return True
-        elif cosine_of_angle(track_direction, point) == -1:
-            return False
+        cos = cosine_of_angle(track_direction, point)
+        if cos > 0.8:
+            return 1
+    return 0

@@ -79,18 +79,18 @@ def start_udp_server(udp_port):
         try:
             data, addr = udp_socket.recvfrom(4096)
             decoded_data = data.decode("utf-8").strip()
-            print("\n==============================")
-            print(f"[UDP Port {udp_port}] [Received from {addr}]")
-            print(decoded_data)
-            print("==============================\n")
+            # print("\n==============================")
+            # print(f"[UDP Port {udp_port}] [Received from {addr}]")
+            # print(decoded_data)
+            # print("==============================\n")
 
             try:
                 json_data = json.loads(decoded_data)
                 gpsData = GPSData(**json_data)
+                # print(
+                #     f"[UDP Port {udp_port}] [+] GPS data updated for train {udp_port - 8081}"
+                # )
                 environment.update_train(udp_port - 8081, gpsData)
-                print(
-                    f"[UDP Port {udp_port}] [+] GPS data updated for train {udp_port - 8081}"
-                )
             except json.JSONDecodeError:
                 print(f"[UDP Port {udp_port}] [!] JSON decode error")
 

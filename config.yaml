@@ -2,7 +2,7 @@
 # This YAML file contains various configurable parameters for the RailGuard simulation.
 # Each section defines a specific aspect of the simulation, such as entity settings, physics, train properties, and control system configurations.
 
-data-dir: "examples/2stations2trains1day(inline)" # Directory where the trains to be simulated are stored.
+data-dir: "examples/2stations2trains1day(cross)" # Directory where the trains to be simulated are stored.
 
 # ============================================
 # ENTITY CONFIGURATION
