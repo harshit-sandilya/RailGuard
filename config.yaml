@@ -50,6 +50,6 @@ train:
 # ============================================
 control:
     pid:
-        kp: 0.1  # Proportional gain (P) - affects how strongly the controller reacts to errors.
-        ki: 0.01 # Integral gain (I) - helps correct steady-state errors over time.
-        kd: 0.01 # Derivative gain (D) - predicts future errors and smoothens control actions.
+        kp: 0.0200 # Proportional gain (P) - affects how strongly the controller reacts to errors.
+        ki: 0.0001 # Integral gain (I) - helps correct steady-state errors over time.
+        kd: 0.0025 # Derivative gain (D) - predicts future errors and smoothens control actions.

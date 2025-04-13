@@ -35,7 +35,9 @@ class TrainSocket(threading.Thread):
         self.udp_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
         self.multicast_group = ("224.0.0.1", port)
 
-        print(f"Train {train['train_no']} initialized.")
+        print(
+            f"Train {train['train_no']} initialized with {len(self.segments)} segments to cover."
+        )
 
     def get_segments(self):
         self.segments = []
@@ -194,11 +196,11 @@ class TrainSocket(threading.Thread):
                 time.sleep(self.TIME_SECOND)
                 current_time = TIMER.get_time()
             while current_time < self.largest:
+                if self.curr_segment >= len(self.segments):
+                    break
                 if current_time >= self.segments[self.curr_segment][1]:
                     self.send_update(self.segments[self.curr_segment][0])
                     self.curr_segment += 1
-                    if self.curr_segment >= len(self.segments):
-                        break
                 # data = self.get_next_segment(current_time)
                 # if data is not None:
                 #     self.send_update(data)

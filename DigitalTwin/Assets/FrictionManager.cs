@@ -1,9 +1,9 @@
 using UnityEngine;
 using System.IO;
+using System.Collections.Generic;
 
 class FrictionManager : MonoBehaviour
 {
-
     private static FrictionManager instance;
     public static FrictionManager Instance
     {
@@ -19,9 +19,7 @@ class FrictionManager : MonoBehaviour
         }
     }
 
-    [SerializeField]
     public static float coffecient = YamlConfigManager.Config.physics.friction_coefficient;
-    public static int RunCount = 0;
     public static bool isRunning = false;
     private static GameObject testBlock;
     private static Rigidbody testBlockRb;
@@ -47,9 +45,13 @@ class FrictionManager : MonoBehaviour
     private static float frictionForceMagnitude;
     [SerializeField]
     private float speed;
+    [SerializeField]
+    private float coffecient_display;
 
     private static string csvFilePath = "Assets/friction.csv";
 
+    private Queue<float> recentCoefficients = new Queue<float>();
+    private const int maxCoefficientSamples = 100;
 
     private void Awake()
     {
@@ -90,6 +92,7 @@ class FrictionManager : MonoBehaviour
         frictionForceMagnitude = coffecient * testBlockRb.mass * Physics.gravity.magnitude;
         frictionForce = frictionForceMagnitude * (-direction);
         previousVelocity = 0;
+        expectedAcceleration = 0;
         // InitializeCSV();
     }
 
@@ -134,23 +137,44 @@ class FrictionManager : MonoBehaviour
     {
         float actualAcceleration = speed - previousVelocity;
         float error = expectedAcceleration - actualAcceleration;
-        float error_sum = 0f;
         integralError += error;
         float derivativeError = error - previousError;
-        error_sum = Kp * error + Ki * integralError + Kd * derivativeError;
-        error_sum = Mathf.Clamp(error, -0.01f, 0.01f);
+        float error_sum = Kp * error + Ki * integralError + Kd * derivativeError;
+
         if (error_sum > Mathf.Epsilon || error_sum < -Mathf.Epsilon)
         {
             frictionForceMagnitude += error_sum * testBlockRb.mass;
             coffecient = frictionForceMagnitude / (testBlockRb.mass * Physics.gravity.magnitude);
+            coffecient_display = coffecient;
             frictionForce = frictionForceMagnitude * (-direction);
-        }
-        else
-        {
-            RunCount += 1;
-            if (RunCount > 5)
+
+            if (recentCoefficients.Count >= maxCoefficientSamples)
             {
-                isRunning = false;
+                recentCoefficients.Dequeue();
+            }
+            recentCoefficients.Enqueue(coffecient);
+
+            if (recentCoefficients.Count == maxCoefficientSamples)
+            {
+                float mean = 0f;
+                foreach (float value in recentCoefficients)
+                {
+                    mean += value;
+                }
+                mean /= maxCoefficientSamples;
+
+                float variance = 0f;
+                foreach (float value in recentCoefficients)
+                {
+                    variance += Mathf.Pow(value - mean, 2);
+                }
+                variance /= maxCoefficientSamples;
+
+                float stdDev = Mathf.Sqrt(variance);
+                if (stdDev < 0.001f)
+                {
+                    isRunning = false;
+                }
             }
         }
         previousError = error;
@@ -165,8 +189,15 @@ class FrictionManager : MonoBehaviour
     {
         if (isRunning)
         {
+            float distanceToEnd = Vector3.Distance(testBlock.transform.position, endPoint);
+            if (distanceToEnd < 25.0f)
+            {
+                testBlock.transform.position = startPoint;
+            }
+
             speed = Vector3.Dot(testBlockRb.linearVelocity, direction);
             TuneFriction();
+
             float maxForce = Mathf.Clamp(maxPower / (speed + Mathf.Epsilon), 0f, trainMass * maxAcceleration + frictionForceMagnitude);
             if (maxForce > frictionForceMagnitude)
             {
@@ -196,6 +227,7 @@ class FrictionManager : MonoBehaviour
                 }
             }
             previousVelocity = speed;
+            // WriteToCSV(Timer.elapsedSeconds, coffecient);
         }
         else
         {
