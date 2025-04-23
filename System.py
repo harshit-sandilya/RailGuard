@@ -66,6 +66,9 @@ class System:
             f"--trains={self.trains}",
             f"--stations={self.stations}",
         ]
+        if not self.dev_mode:
+            unity_args.append("-batchmode")
+            unity_args.append("-nographics")
         self.proc = subprocess.Popen(unity_args)
         self.log_watcher.watch_blocking("== UNITY_PLAYMODE_START ==")
         self.log_watcher.watch_blocking("== SERVER STARTED ==")

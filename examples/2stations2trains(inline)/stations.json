@@ -3,18 +3,6 @@
     "station": "QWERTYU",
     "station_code": "QWE",
     "state": "ASDFGHJKL",
-    "schedules": [
-      {
-        "train_no": 12245,
-        "train_name": "ZXCVBNMASDFGHJ",
-        "type": "NZZGI",
-        "avg_speed": 18,
-        "arrival": "0:9:42",
-        "departure": "0:11:42",
-        "arrival_day": 0,
-        "departure_day": 0
-      }
-    ],
     "coordinates": [
       1,
       5
@@ -24,18 +12,6 @@
     "station": "POIUYT",
     "station_code": "POI",
     "state": "LKJHGFDSA",
-    "schedules": [
-      {
-        "train_no": 54321,
-        "train_name": "LKJHGFDSAMNBVCX",
-        "type": "NZZGI",
-        "avg_speed": 36,
-        "arrival": "0:17:04",
-        "departure": "0:19:04",
-        "arrival_day": 0,
-        "departure_day": 0
-      }
-    ],
     "coordinates": [
       3,
       7

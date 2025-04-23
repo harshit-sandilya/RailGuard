@@ -5,33 +5,41 @@
     "type": "NZZGI",
     "avg_speed": 81,
     "start_time": "0:5:00",
-    "end_time": "0:29:00",
+    "end_time": "0:26:44",
     "schedules": [
       {
         "station": "QWERTYU",
         "station_code": "QWE",
         "arrival_day": 0,
         "departure_day": 0,
-        "arrival": "0:5:00",
-        "departure": "0:5:00"
+        "arrival": "0:9:42",
+        "departure": "0:11:42"
       },
       {
         "station": "POIUYT",
         "station_code": "POI",
         "arrival_day": 0,
         "departure_day": 0,
-        "arrival": "0:26:00",
-        "departure": "0:29:00"
+        "arrival": "0:18:26",
+        "departure": "0:20:00"
       }
     ],
     "coordinates": [
       [
         0,
-        2
+        4
       ],
       [
         1,
         5
+      ],
+      [
+        3,
+        7
+      ],
+      [
+        5,
+        9
       ]
     ]
   }
