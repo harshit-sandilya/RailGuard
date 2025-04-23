@@ -89,7 +89,7 @@ def filter_track_points(track_points):
     return sorted(unique_result)
 
 
-def get_tracks(
+def generate_tracks(
     stations: List[Station],
     train_data: List[dict],
     train_length: float,

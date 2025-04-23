@@ -14,6 +14,9 @@ public class TrainController : MonoBehaviour
     private Queue<float> timeAllocated;
     private Queue<float> haltTime;
 
+    private GameObject triggerObject;
+    private int TrainNumber;
+
     [SerializeField] Vector3 currStartCoords;
     [SerializeField] Vector3 currEndCoords;
     [SerializeField] float currTimeAllocated;
@@ -54,6 +57,24 @@ public class TrainController : MonoBehaviour
 
     private string csvFilePath = "/Users/harshit/Projects/RailGuard/DigitalTwin/Assets/speeds.csv";
 
+    private void CreateTriggerCollider()
+    {
+        // Create a child object with a trigger collider that matches the train's size
+        triggerObject = new GameObject("TrainTrigger");
+        triggerObject.transform.parent = this.transform;
+        triggerObject.transform.localPosition = Vector3.zero;
+        triggerObject.transform.localRotation = Quaternion.identity;
+
+        // Add a box collider as trigger
+        BoxCollider triggerCollider = triggerObject.AddComponent<BoxCollider>();
+        triggerCollider.size = this.transform.localScale;
+        triggerCollider.isTrigger = true;
+
+        // Add a TrainTriggerDetector component to handle trigger events
+        TrainTriggerDetector detector = triggerObject.AddComponent<TrainTriggerDetector>();
+        detector.Initialize(this);
+    }
+
     public void Initialize(TrainData trainData, int port)
     {
         startCoords = new Queue<Vector3>();
@@ -78,6 +99,8 @@ public class TrainController : MonoBehaviour
         Thread udpThread = new Thread(StartUDPServer);
         udpThread.IsBackground = true;
         udpThread.Start();
+        CreateTriggerCollider();
+        TrainNumber = trainData.number;
 
 
         // NEW MODEL
@@ -434,8 +457,28 @@ public class TrainController : MonoBehaviour
             }
             else
             {
+                PyReceiver receiver = FindFirstObjectByType<PyReceiver>();
+                if (receiver != null)
+                {
+                    receiver.RemoveTrain(TrainNumber);
+                }
                 Destroy(gameObject);
             }
+        }
+    }
+
+    public void OnTrainIntersection(TrainController otherTrain)
+    {
+        if (otherTrain != null)
+        {
+            int thisTrainNumber = TrainNumber;
+            int otherTrainNumber = otherTrain.TrainNumber;
+
+            Vector3 thisPosition = transform.position;
+            Vector3 otherPosition = otherTrain.transform.position;
+
+            Debug.Log("=== COLLISION DETECTED ===");
+            Debug.Log($"Train Intersection: Train {thisTrainNumber} intersected with Train {otherTrainNumber} at position ({thisPosition.x}, {thisPosition.z})");
         }
     }
 
@@ -443,5 +486,31 @@ public class TrainController : MonoBehaviour
     {
         udpClient.Close();
         udpClient = null;
+    }
+}
+
+
+public class TrainTriggerDetector : MonoBehaviour
+{
+    private TrainController parentTrain;
+
+    public void Initialize(TrainController train)
+    {
+        parentTrain = train;
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        // Check if we collided with another train's trigger
+        if (other.gameObject.name == "TrainTrigger")
+        {
+            // Get the parent train controller of the other trigger
+            TrainController otherTrain = other.transform.parent.GetComponent<TrainController>();
+            if (otherTrain != null && otherTrain != parentTrain)
+            {
+                // Report the intersection to the parent train
+                parentTrain.OnTrainIntersection(otherTrain);
+            }
+        }
     }
 }

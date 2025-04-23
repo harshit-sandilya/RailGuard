@@ -1,4 +1,5 @@
 from typing import List
+
 from schema.initial import Track
 
 

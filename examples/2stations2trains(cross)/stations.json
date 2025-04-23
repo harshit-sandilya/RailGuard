@@ -1,0 +1,20 @@
+[
+  {
+    "station": "QWERTYU",
+    "station_code": "QWE",
+    "state": "ASDFGHJKL",
+    "coordinates": [
+      1,
+      5
+    ]
+  },
+  {
+    "station": "POIUYT",
+    "station_code": "POI",
+    "state": "LKJHGFDSA",
+    "coordinates": [
+      3,
+      7
+    ]
+  }
+]

@@ -1,6 +1,9 @@
-from schema import InitialData, TrainObject, GPSData
 from typing import List
-from .utils import group_tracks_into_branches, coords_to_route, get_direction
+
+import numpy as np
+
+from schema import GPSData, InitialData, TrainObject
+from utils import coords_to_route, get_direction, group_tracks_into_branches
 
 
 class Environment:
@@ -13,15 +16,14 @@ class Environment:
         self.stations = initData.stations
         self.tracks = group_tracks_into_branches(initData.tracks)
         print(
-            f"[Environment] Initialised with {len(self.stations)} stations and {len(self.tracks)} tracks."
+            f"[CONTROLLER: ENVIRONMENT] Initialised with {len(self.stations)} stations and {len(self.tracks)} tracks."
         )
 
     def initialise_trains(self, num_trains):
         self.trains = [TrainObject() for _ in range(num_trains)]
-        print(f"[Environment] Initialised with {len(self.trains)} trains.")
+        print(f"[CONTROLLER: ENVIRONMENT] Initialised with {len(self.trains)} trains.")
 
     def update_train(self, index, gpsData: GPSData):
-        # print(f"[Environment] Updating train {index} with new GPS data.")
         self.trains[index].curr_segment = coords_to_route(gpsData.coords, self.tracks)
         self.trains[index].distance_remaining = gpsData.distanceRemaining
         self.trains[index].speed = gpsData.speed
@@ -29,5 +31,24 @@ class Environment:
         self.trains[index].direction = get_direction(
             gpsData.direction, self.tracks[self.trains[index].curr_segment]
         )
-        # print(f"Train {index}: {self.trains[index]}")
-        # print(f"[Environment] Train {index} updated with new GPS data.")
+
+    def get_observation(self) -> np.array:
+        observations = []
+        for train in self.trains:
+            curr_segment = train.curr_segment
+            distance_remaining = train.distance_remaining
+            observation = np.array(
+                [
+                    curr_segment,
+                    distance_remaining,
+                    train.speed,
+                    train.delay,
+                    train.direction,
+                ]
+            )
+            observations.append(observation)
+
+        return np.array(observations)
+
+    def process_action(self, action):
+        pass

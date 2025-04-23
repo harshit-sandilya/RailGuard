@@ -7,7 +7,7 @@ using UnityEngine;
 [Serializable]
 public class RailGuardConfig
 {
-    public string data_dir { get; set; }
+    public int port { get; set; }
     public Entities entities { get; set; }
     public StationConfig station { get; set; }
     public TimeConfig time { get; set; }
@@ -110,5 +110,64 @@ public static class YamlConfigManager
         {
             Debug.LogError($"Error loading YAML: {e.Message}");
         }
+
+        _config.port = GetPortFromCommandLineArgs();
+        if (_config.entities == null)
+        {
+            _config.entities = new Entities();
+        }
+        _config.entities.stations = GetStationsFromCommandLineArgs();
+        _config.entities.trains = GetTrainsFromCommandLineArgs();
+    }
+
+    private static int GetPortFromCommandLineArgs()
+    {
+        string[] args = System.Environment.GetCommandLineArgs();
+        foreach (string arg in args)
+        {
+            if (arg.StartsWith("--startPort"))
+            {
+                string[] split = arg.Split('=');
+                if (split.Length == 2 && int.TryParse(split[1], out int port))
+                {
+                    return port;
+                }
+            }
+        }
+        return 8080;
+    }
+
+    private static int GetStationsFromCommandLineArgs()
+    {
+        string[] args = System.Environment.GetCommandLineArgs();
+        foreach (string arg in args)
+        {
+            if (arg.StartsWith("--stations"))
+            {
+                string[] split = arg.Split('=');
+                if (split.Length == 2 && int.TryParse(split[1], out int stations))
+                {
+                    return stations;
+                }
+            }
+        }
+        return 0;
+    }
+
+    private static int GetTrainsFromCommandLineArgs()
+    {
+        string[] args = System.Environment.GetCommandLineArgs();
+        foreach (string arg in args)
+        {
+            if (arg.StartsWith("--trains"))
+            {
+                string[] split = arg.Split('=');
+                if (split.Length == 2 && int.TryParse(split[1], out int trains))
+                {
+                    return trains;
+                }
+            }
+        }
+        return 0;
     }
 }

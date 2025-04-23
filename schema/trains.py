@@ -11,10 +11,10 @@ class TrainObject(BaseModel):
     def __init__(self, **data):
         defaults = {
             "curr_segment": -1,
-            "distance_remaining": 0,
-            "speed": 0,
-            "delay": 0,
-            "direction": 0,
+            "distance_remaining": -1,
+            "speed": -1,
+            "delay": -1,
+            "direction": -1,
         }
 
         defaults.update(data)

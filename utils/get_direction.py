@@ -1,5 +1,6 @@
-from schema.gps import Vector3
 from typing import List
+
+from schema.gps import Vector3
 from schema.initial import Track
 
 

@@ -1,6 +1,7 @@
 from typing import List, Tuple
-from schema.initial import Track
+
 from schema.gps import Vector3
+from schema.initial import Track
 
 
 def distance_from_line_segment(

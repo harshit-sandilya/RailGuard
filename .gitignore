@@ -81,3 +81,4 @@ Icon
 .ropeproject
 .vscode/
 .ruff_cache/
+.env
