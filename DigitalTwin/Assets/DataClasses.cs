@@ -7,7 +7,6 @@ public class InitialData
 {
     public List<Station> stations;
     public List<Track> tracks;
-    public int trains;
 }
 
 [Serializable]

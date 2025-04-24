@@ -5,7 +5,7 @@ using System.Threading;
 using System;
 using System.Collections.Generic;
 using System.Text;
-
+using Newtonsoft.Json.Linq;
 public class PyReceiver : MonoBehaviour
 {
     private int PORT;
@@ -20,7 +20,6 @@ public class PyReceiver : MonoBehaviour
 
     public bool routerCompleted = false;
     private Thread completionCheckThread;
-
     private const int TRAIN_LAYER = 8;
 
     void Start()
@@ -83,7 +82,9 @@ public class PyReceiver : MonoBehaviour
                     {
                         try
                         {
-                            InitialData initialData = JsonUtility.FromJson<InitialData>(jsonString);
+                            JObject jsonObject = JObject.Parse(jsonString);
+                            InitialData initialData = jsonObject.ToObject<InitialData>();
+
                             if (initialData != null && initialData.stations.Count > 0)
                             {
                                 Debug.Log("Spawning Stations");
@@ -123,24 +124,16 @@ public class PyReceiver : MonoBehaviour
         while (isRunning)
         {
             bool noActiveTrains = false;
-
-            // Get the number of active trains from the main thread
             mainThreadActions.Enqueue(() =>
             {
                 noActiveTrains = activeTrains.Count == 0;
             });
-
-            // Give time for the main thread to process the action
             Thread.Sleep(500);
-
-            // Check if both conditions are met
             if (routerCompleted && noActiveTrains)
             {
                 Debug.Log("== COMPLETED ==");
                 break;
             }
-
-            // Wait before checking again
             Thread.Sleep(1000);
         }
     }

@@ -123,7 +123,9 @@ public class TrainController : MonoBehaviour
         requiredAvgSpeed = Vector3.Distance(currStartCoords, currEndCoords) / currTimeAllocated;
         state = TrainState.Accelerate;
         startTime = Timer.elapsedSeconds;
-        Debug.Log("Train initialized with start coords: " + currStartCoords + " and end coords: " + currEndCoords + " to complete in " + currTimeAllocated + " seconds and halt for " + currHaltTime + " seconds");
+        int segment_start = EnvironmentManager.getSegment(currStartCoords);
+        int segment_end = EnvironmentManager.getSegment(currEndCoords);
+        Debug.Log("Train initialized with start coords: " + currStartCoords + " and end coords: " + currEndCoords + " to complete in " + currTimeAllocated + " seconds and halt for " + currHaltTime + " seconds. Start from: " + segment_start + " and end at: " + segment_end);
     }
 
     private Queue<T> addToQueueFront<T>(Queue<T> queue, Queue<T> previousQueue)

@@ -25,6 +25,7 @@ public class EnvironmentManager : MonoBehaviour
     }
 
     public static EnvironmentStation[] stations;
+    public static List<List<Track>> segments;
 
     private void Awake()
     {
@@ -39,6 +40,106 @@ public class EnvironmentManager : MonoBehaviour
         }
     }
 
+
+    private static void formSegments(List<Track> tracks)
+    {
+        segments = new List<List<Track>>();
+        Dictionary<Vector3, List<Track>> outgoingTracks = new Dictionary<Vector3, List<Track>>();
+        Dictionary<Vector3, List<Track>> incomingTracks = new Dictionary<Vector3, List<Track>>();
+
+        // Populate dictionaries with outgoing and incoming tracks for each station
+        foreach (Track track in tracks)
+        {
+            Vector3 start = new Vector3(track.start[0] * 1000, 0, track.start[1] * 1000);
+            Vector3 end = new Vector3(track.end[0] * 1000, 0, track.end[1] * 1000);
+
+            if (!outgoingTracks.ContainsKey(start))
+                outgoingTracks[start] = new List<Track>();
+            outgoingTracks[start].Add(track);
+
+            if (!incomingTracks.ContainsKey(end))
+                incomingTracks[end] = new List<Track>();
+            incomingTracks[end].Add(track);
+        }
+
+        // Create a HashSet to track visited tracks
+        HashSet<Track> visitedTracks = new HashSet<Track>();
+
+        // Define a recursive function to follow a branch
+        void FollowBranch(Track currentTrack, List<Track> branch)
+        {
+            visitedTracks.Add(currentTrack);
+            branch.Add(currentTrack);
+
+            Vector3 endPoint = new Vector3(currentTrack.end[0] * 1000, 0, currentTrack.end[1] * 1000);
+
+            List<Track> outTracks = outgoingTracks.ContainsKey(endPoint) ? outgoingTracks[endPoint] : new List<Track>();
+            List<Track> inTracks = incomingTracks.ContainsKey(endPoint) ? incomingTracks[endPoint] : new List<Track>();
+
+            if (outTracks.Count == 1 && inTracks.Count == 1)
+            {
+                Track nextTrack = outTracks[0];
+                if (!visitedTracks.Contains(nextTrack))
+                {
+                    FollowBranch(nextTrack, branch);
+                }
+            }
+        }
+
+        // Find branch start points (points with more outgoing than incoming tracks or vice versa)
+        HashSet<Vector3> branchStartPoints = new HashSet<Vector3>();
+        foreach (var kvp in outgoingTracks)
+        {
+            Vector3 point = kvp.Key;
+            int outCount = kvp.Value.Count;
+            int inCount = incomingTracks.ContainsKey(point) ? incomingTracks[point].Count : 0;
+
+            if (outCount != inCount)
+            {
+                branchStartPoints.Add(point);
+            }
+        }
+
+        // Follow branches starting from branch points
+        foreach (Vector3 startPoint in branchStartPoints)
+        {
+            if (outgoingTracks.ContainsKey(startPoint))
+            {
+                foreach (Track track in outgoingTracks[startPoint])
+                {
+                    if (!visitedTracks.Contains(track))
+                    {
+                        List<Track> newBranch = new List<Track>();
+                        FollowBranch(track, newBranch);
+                        segments.Add(newBranch);
+                    }
+                }
+            }
+        }
+
+        // Process any remaining unvisited tracks
+        foreach (Track track in tracks)
+        {
+            if (!visitedTracks.Contains(track))
+            {
+                List<Track> newBranch = new List<Track>();
+                FollowBranch(track, newBranch);
+                segments.Add(newBranch);
+            }
+        }
+
+        // Sort segments by starting point coordinates
+        segments.Sort((a, b) =>
+        {
+            float aX = a[0].start[0];
+            float aY = a[0].start[1];
+            float bX = b[0].start[0];
+            float bY = b[0].start[1];
+
+            int xCompare = aX.CompareTo(bX);
+            return xCompare != 0 ? xCompare : aY.CompareTo(bY);
+        });
+    }
     private static List<List<Vector3>> getPossiblePoints(Vector3 start, Vector3 point, Vector3 end)
     {
         Vector3 midPoint1 = (start + point) / 2;
@@ -62,7 +163,8 @@ public class EnvironmentManager : MonoBehaviour
     public static void Initialise(List<Station> stationsReceived, List<Track> tracksReceived)
     {
         stations = new EnvironmentStation[stationsReceived.Count];
-
+        formSegments(tracksReceived);
+        Debug.Log($"Segments: {segments.Count}");
         for (int i = 0; i < stationsReceived.Count; i++)
         {
             Station station = stationsReceived[i];
@@ -146,5 +248,64 @@ public class EnvironmentManager : MonoBehaviour
             }
             return reversedRoute;
         }
+    }
+
+    public static float getDistance(Vector2 point, Vector2 start, Vector2 end)
+    {
+        float distance = 0f;
+        if (start == end)
+        {
+            return Vector2.Distance(point, start);
+        }
+
+        float lineLength = (end - start).sqrMagnitude;
+
+        if (lineLength == 0)
+        {
+            return Vector2.Distance(point, start);
+        }
+
+        float t = Vector2.Dot(point - start, end - start) / lineLength;
+
+        if (t < 0)
+        {
+            distance = Vector2.Distance(point, start);
+        }
+        else if (t > 1)
+        {
+            distance = Vector2.Distance(point, end);
+        }
+        else
+        {
+            Vector2 closestPoint = start + t * (end - start);
+            distance = Vector2.Distance(point, closestPoint);
+        }
+
+        return distance;
+    }
+    public static int getSegment(Vector3 coords)
+    {
+        Vector2 coords2d = new Vector2(coords.x / 1000, coords.z / 1000);
+        int index = -1;
+        float minDistance = float.MaxValue;
+
+        for (int i = 0; i < segments.Count; i++)
+        {
+            List<Track> route = segments[i];
+            foreach (var track in route)
+            {
+                Vector2 start = new Vector2(track.start[0], track.start[1]);
+                Vector2 end = new Vector2(track.end[0], track.end[1]);
+                float distance = getDistance(coords2d, start, end);
+
+                if (distance < minDistance)
+                {
+                    minDistance = distance;
+                    index = i;
+                }
+            }
+        }
+
+        return index;
     }
 }
