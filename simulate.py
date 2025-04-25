@@ -34,7 +34,7 @@ system.stop()
 collisons = int(log_watcher.get_collisions() / 2)
 
 print("================================================================")
-print(f"Number of trains: {args.trains}")
+print(f"Number of trains: {abs(args.trains)}")
 print(f"Number of stations: {args.stations}")
 print(f"Number of collisions: {collisons}")
 print("================================================================")

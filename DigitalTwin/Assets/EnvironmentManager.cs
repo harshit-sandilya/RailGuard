@@ -4,7 +4,8 @@ using System.Collections.Generic;
 public class EnvironmentStation
 {
     public Vector3 mainCoordinates;
-    public List<List<List<Vector3>>> routes;
+    public int onSegment;
+    public int parallelSegment;
 }
 
 public class EnvironmentManager : MonoBehaviour
@@ -26,6 +27,10 @@ public class EnvironmentManager : MonoBehaviour
 
     public static EnvironmentStation[] stations;
     public static List<List<Track>> segments;
+
+    public static List<List<int>> adjacencyList;
+    public static List<bool> isStationList;
+    public static List<bool> isStationParallel;
 
     private void Awake()
     {
@@ -139,120 +144,63 @@ public class EnvironmentManager : MonoBehaviour
             int xCompare = aX.CompareTo(bX);
             return xCompare != 0 ? xCompare : aY.CompareTo(bY);
         });
-    }
-    private static List<List<Vector3>> getPossiblePoints(Vector3 start, Vector3 point, Vector3 end)
-    {
-        Vector3 midPoint1 = (start + point) / 2;
-        Vector3 midPoint2 = (point + end) / 2;
 
-        float gapDistance = YamlConfigManager.Config.station.width * 4;
-        Vector3 direction = (end - start).normalized;
-        Vector3 perpendicularDirection = new Vector3(-direction.z, direction.y, direction.x);
-
-        Vector3 point1 = midPoint1 - perpendicularDirection * gapDistance;
-        Vector3 point2 = midPoint2 - perpendicularDirection * gapDistance;
-
-        return new List<List<Vector3>>
+        for (int i = 0; i < segments.Count; i++)
         {
-            new List<Vector3> { start, point1 },
-            new List<Vector3> { point1, point2 },
-            new List<Vector3> { point2, end }
-        };
+            for (int j = 0; j < segments[i].Count; j++)
+            {
+                segments[i][j].start[0] *= 1000;
+                segments[i][j].start[1] *= 1000;
+                segments[i][j].end[0] *= 1000;
+                segments[i][j].end[1] *= 1000;
+            }
+        }
     }
 
-    public static void Initialise(List<Station> stationsReceived, List<Track> tracksReceived)
+    private static void createAdjcencyList()
     {
-        stations = new EnvironmentStation[stationsReceived.Count];
-        formSegments(tracksReceived);
-        Debug.Log($"Segments: {segments.Count}");
-        for (int i = 0; i < stationsReceived.Count; i++)
+        adjacencyList = new List<List<int>>(segments.Count);
+        for (int i = 0; i < segments.Count; i++)
         {
-            Station station = stationsReceived[i];
-            EnvironmentStation stationObj = new EnvironmentStation
+            adjacencyList.Add(new List<int>());
+        }
+        for (int i = 0; i < segments.Count; i++)
+        {
+            Vector2 segmentStart = new Vector2(segments[i][0].start[0], segments[i][0].start[1]);
+            Vector2 segmentEnd = new Vector2(segments[i][segments[i].Count - 1].end[0], segments[i][segments[i].Count - 1].end[1]);
+            for (int j = 0; j < segments.Count; j++)
             {
-                mainCoordinates = new Vector3(station.coords[0] * 1000, 0, station.coords[1] * 1000),
-                routes = new List<List<List<Vector3>>>()
-            };
-
-            var tempList = new List<List<Vector3>>();
-
-            foreach (var track in tracksReceived)
-            {
-                Vector3 startCoords = new Vector3(track.start[0] * 1000, 0, track.start[1] * 1000);
-                Vector3 endCoords = new Vector3(track.end[0] * 1000, 0, track.end[1] * 1000);
-
-                if (stationObj.mainCoordinates == startCoords || stationObj.mainCoordinates == endCoords)
+                if (i != j)
                 {
-                    tempList.Add(new List<Vector3> { startCoords, endCoords });
+                    Vector2 otherSegmentStart = new Vector2(segments[j][0].start[0], segments[j][0].start[1]);
+                    Vector2 otherSegmentEnd = new Vector2(segments[j][segments[j].Count - 1].end[0], segments[j][segments[j].Count - 1].end[1]);
+
+                    if (segmentStart == otherSegmentEnd || segmentEnd == otherSegmentStart)
+                    {
+                        adjacencyList[i].Add(j);
+                    }
                 }
             }
-
-            if (tempList.Count > 1)
-            {
-                List<List<Vector3>> temp2 = getPossiblePoints(tempList[0][0], stationObj.mainCoordinates, tempList[1][1]);
-                List<List<Vector3>> temp1 = new List<List<Vector3>> { new List<Vector3> { tempList[0][0], tempList[1][1] } };
-
-                stationObj.routes.Add(temp1);
-                stationObj.routes.Add(temp2);
-            }
-
-            stations[i] = stationObj;
-
-            // Debug.Log($"Station: {station.name} has {stationObj.routes.Count} routes");
-            // foreach (var routeList in stationObj.routes)
-            // {
-            //     Debug.Log("Route: " + string.Join(" -> ", routeList.ConvertAll(segment => segment[0].ToString())) + " -> " + routeList[routeList.Count - 1][1]);
-            // }
         }
     }
 
-    public static void checkStationArray()
+    private static void figureOutSegmentsforStations()
     {
         for (int i = 0; i < stations.Length; i++)
         {
-            Debug.Log("Station: " + stations[i].mainCoordinates);
-        }
-    }
-
-    public static int isStation(Vector3 coords)
-    {
-        for (int i = 0; i < stations.Length; i++)
-        {
-            if (stations[i].mainCoordinates == coords)
+            int segmentIndex = getSegment(stations[i].mainCoordinates);
+            if (segmentIndex != -1)
             {
-                return i;
+                stations[i].onSegment = segmentIndex;
+                stations[i].parallelSegment = segmentIndex + 1;
+                isStationList[segmentIndex] = true;
+                isStationParallel[segmentIndex + 1] = true;
             }
         }
-        return -1;
     }
 
-    public static List<List<Vector3>> getRoute(int stationIndex, Vector3 direction)
+    private static float getDistance(Vector2 point, Vector2 start, Vector2 end)
     {
-        Vector3 station_dir = stations[stationIndex].routes[0][0][1] - stations[stationIndex].routes[0][0][0];
-        Vector3 station_dir_normalized = station_dir.normalized;
-        Vector3 direction_normalized = direction.normalized;
-        float angle = Vector3.Angle(station_dir_normalized, direction_normalized);
-        if (angle < 90)
-        {
-            return stations[stationIndex].routes[1];
-        }
-        else
-        {
-            List<List<Vector3>> reversedRoute = new List<List<Vector3>>(stations[stationIndex].routes[1]);
-            reversedRoute.Reverse();
-            for (int i = 0; i < reversedRoute.Count; i++)
-            {
-                List<Vector3> segment = new List<Vector3>(reversedRoute[i]);
-                segment.Reverse();
-                reversedRoute[i] = segment;
-            }
-            return reversedRoute;
-        }
-    }
-
-    public static float getDistance(Vector2 point, Vector2 start, Vector2 end)
-    {
-        float distance = 0f;
         if (start == end)
         {
             return Vector2.Distance(point, start);
@@ -266,7 +214,7 @@ public class EnvironmentManager : MonoBehaviour
         }
 
         float t = Vector2.Dot(point - start, end - start) / lineLength;
-
+        float distance;
         if (t < 0)
         {
             distance = Vector2.Distance(point, start);
@@ -283,9 +231,96 @@ public class EnvironmentManager : MonoBehaviour
 
         return distance;
     }
+
+    private static void printSegemnts()
+    {
+        System.Text.StringBuilder sb = new System.Text.StringBuilder();
+        for (int i = 0; i < segments.Count; i++)
+        {
+            sb.AppendLine($"Segment {i}:");
+            foreach (var track in segments[i])
+            {
+                sb.AppendLine($"  Track: {track.start[0]}, {track.start[1]} -> {track.end[0]}, {track.end[1]}");
+            }
+        }
+        Debug.Log(sb.ToString());
+    }
+
+    private static void printAdjacencyList()
+    {
+        System.Text.StringBuilder sb = new System.Text.StringBuilder();
+        for (int i = 0; i < adjacencyList.Count; i++)
+        {
+            sb.AppendLine($"Segment {i}:");
+            foreach (var adjacent in adjacencyList[i])
+            {
+                sb.AppendLine($"  Adjacent: {adjacent}");
+            }
+        }
+        Debug.Log(sb.ToString());
+    }
+
+    private static void printStations()
+    {
+        System.Text.StringBuilder sb = new System.Text.StringBuilder();
+        for (int i = 0; i < stations.Length; i++)
+        {
+            sb.AppendLine($"Station {i}: {stations[i].mainCoordinates}");
+            sb.AppendLine($"  On Segment: {stations[i].onSegment}");
+            sb.AppendLine($"  Parallel Segment: {stations[i].parallelSegment}");
+        }
+        Debug.Log(sb.ToString());
+    }
+
+    private static void processParallelroutes()
+    {
+        for (int i = 0; i < segments.Count; i++)
+        {
+            if (isStationParallel[i])
+            {
+                List<Track> tracks = segments[i];
+                List<Track> modifiedTracks = new List<Track> { tracks[0] };
+                Vector2 midpoint = new Vector2(tracks[1].start[0] + tracks[1].end[0], tracks[1].start[1] + tracks[1].end[1]) / 2;
+                Track temp = new Track();
+                temp.start = new List<float> { tracks[1].start[0], tracks[1].start[1] };
+                temp.end = new List<float> { midpoint.x, midpoint.y };
+                modifiedTracks.Add(temp);
+                Track temp2 = new Track();
+                temp2.start = new List<float> { midpoint.x, midpoint.y };
+                temp2.end = new List<float> { tracks[1].end[0], tracks[1].end[1] };
+                modifiedTracks.Add(temp2);
+                modifiedTracks.Add(tracks[2]);
+                segments[i] = modifiedTracks;
+            }
+        }
+    }
+
+    public static void Initialise(List<Station> stationsReceived, List<Track> tracksReceived)
+    {
+        stations = new EnvironmentStation[stationsReceived.Count];
+        formSegments(tracksReceived);
+        isStationList = new List<bool>(new bool[segments.Count]);
+        isStationParallel = new List<bool>(new bool[segments.Count]);
+        for (int i = 0; i < segments.Count; i++)
+        {
+            isStationList[i] = false;
+            isStationParallel[i] = false;
+        }
+        for (int i = 0; i < stationsReceived.Count; i++)
+        {
+            stations[i] = new EnvironmentStation();
+            stations[i].mainCoordinates = new Vector3(stationsReceived[i].coords[0] * 1000, 0, stationsReceived[i].coords[1] * 1000);
+            stations[i].onSegment = -1;
+            stations[i].parallelSegment = -1;
+        }
+        createAdjcencyList();
+        figureOutSegmentsforStations();
+        processParallelroutes();
+    }
+
     public static int getSegment(Vector3 coords)
     {
-        Vector2 coords2d = new Vector2(coords.x / 1000, coords.z / 1000);
+        Vector2 coords2d = new Vector2(coords.x, coords.z);
         int index = -1;
         float minDistance = float.MaxValue;
 
@@ -307,5 +342,106 @@ public class EnvironmentManager : MonoBehaviour
         }
 
         return index;
+    }
+
+    public static List<int> getPath(int startIndex, int endIndex)
+    {
+        List<int> path = new List<int>();
+        Queue<int> queue = new Queue<int>();
+        bool[] visited = new bool[adjacencyList.Count];
+        int[] parent = new int[adjacencyList.Count];
+
+        queue.Enqueue(startIndex);
+        visited[startIndex] = true;
+        parent[startIndex] = -1;
+
+        while (queue.Count > 0)
+        {
+            int current = queue.Dequeue();
+            if (current == endIndex)
+            {
+                break;
+            }
+
+            foreach (int neighbor in adjacencyList[current])
+            {
+                if (!visited[neighbor])
+                {
+                    queue.Enqueue(neighbor);
+                    visited[neighbor] = true;
+                    parent[neighbor] = current;
+                }
+            }
+        }
+
+        for (int i = endIndex; i != -1; i = parent[i])
+        {
+            path.Add(i);
+        }
+        path.Reverse();
+        if (isStationList[path[path.Count - 1]])
+        {
+            for (int i = 0; i < stations.Length; i++)
+            {
+                if (stations[i].onSegment == path[path.Count - 1])
+                {
+                    path[path.Count - 1] = stations[i].parallelSegment;
+                    break;
+                }
+            }
+        }
+        return path;
+    }
+
+    public static List<Track> getSegmentTracks(int segmentIndex)
+    {
+        if (segmentIndex >= 0 && segmentIndex < segments.Count)
+        {
+            return segments[segmentIndex];
+        }
+        return null;
+    }
+
+    public static List<float> getPathTime(List<int> path, float time)
+    {
+        List<float> splitTimes = new List<float>();
+        List<float> distances = new List<float>(path.Count);
+        float totalDistance = 0;
+        for (int i = 0; i < path.Count; i++)
+        {
+            List<Track> segmentTracks = getSegmentTracks(path[i]);
+            float segmentDistance = 0;
+            for (int j = 0; j < segmentTracks.Count; j++)
+            {
+                segmentDistance += Vector2.Distance(new Vector2(segmentTracks[j].start[0], segmentTracks[j].start[1]), new Vector2(segmentTracks[j].end[0], segmentTracks[j].end[1]));
+            }
+            distances.Add(segmentDistance);
+            totalDistance += segmentDistance;
+        }
+        float timePerUnit = time / totalDistance;
+        for (int i = 0; i < distances.Count; i++)
+        {
+            splitTimes.Add(timePerUnit * distances[i]);
+        }
+        return splitTimes;
+    }
+
+    public static List<float> getTrackTimes(List<Track> tracks, float time)
+    {
+        List<float> splitTimes = new List<float>();
+        List<float> distances = new List<float>(tracks.Count);
+        float totalDistance = 0;
+        for (int i = 0; i < tracks.Count; i++)
+        {
+            float segmentDistance = Vector2.Distance(new Vector2(tracks[i].start[0], tracks[i].start[1]), new Vector2(tracks[i].end[0], tracks[i].end[1]));
+            distances.Add(segmentDistance);
+            totalDistance += segmentDistance;
+        }
+        float timePerUnit = time / totalDistance;
+        for (int i = 0; i < distances.Count; i++)
+        {
+            splitTimes.Add(timePerUnit * distances[i]);
+        }
+        return splitTimes;
     }
 }

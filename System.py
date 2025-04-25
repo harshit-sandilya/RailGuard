@@ -20,7 +20,7 @@ class System:
         log_watcher,
         log_file_path,
     ):
-        self.trains = trains
+        self.trains = abs(trains)
         self.stations = stations
         self.dev_mode = dev_mode
         self.simulate = simulate
