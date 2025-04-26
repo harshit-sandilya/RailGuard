@@ -35,120 +35,95 @@ class TrainSender:
             self.thread.join()
         print(f"[TRAIN SENDER] Stopped TrainSender for train {self.train['train_no']}")
 
+    def print_segments(self):
+        for segment in self.segments:
+            print(
+                f"Train {self.train['train_no']} Segment: {segment[0].model_dump_json()} at time {segment[1]}"
+            )
+
     def get_segments(self):
         self.segments = []
-        assert (
-            len(self.train["schedules"]) <= len(self.train["coordinates"])
-            and len(self.train["schedules"]) >= len(self.train["coordinates"]) - 2
+        assert len(self.train["schedules"]) == len(self.train["coordinates"]) - 2
+
+        self.segments.append(
+            [
+                TrainData(
+                    number=self.train["train_no"],
+                    start_coords=self.train["coordinates"][0],
+                    end_coords=self.train["coordinates"][1],
+                    time_allocated=timer_to_seconds(
+                        str_to_timer(
+                            self.train["schedules"][0]["arrival_day"],
+                            self.train["schedules"][0]["arrival"],
+                        )
+                        - self.smallest
+                    ),
+                    halt_time=timer_to_seconds(
+                        str_to_timer(
+                            self.train["schedules"][0]["departure_day"],
+                            self.train["schedules"][0]["departure"],
+                        )
+                        - str_to_timer(
+                            self.train["schedules"][0]["arrival_day"],
+                            self.train["schedules"][0]["arrival"],
+                        )
+                    ),
+                ),
+                self.smallest,
+            ]
         )
-        if len(self.train["schedules"]) == len(self.train["coordinates"]):
-            for i in range(len(self.train["schedules"]) - 1):
-                dept_time = str_to_timer(
-                    self.train["schedules"][i]["departure_day"],
-                    self.train["schedules"][i]["departure"],
-                )
-                arr_time = str_to_timer(
-                    self.train["schedules"][i + 1]["arrival_day"],
-                    self.train["schedules"][i + 1]["arrival"],
-                )
-                next_dep_time = str_to_timer(
-                    self.train["schedules"][i + 1]["departure_day"],
-                    self.train["schedules"][i + 1]["departure"],
-                )
-                start_coords = self.train["coordinates"][i]
-                end_coords = self.train["coordinates"][i + 1]
-                time_allocated = timer_to_seconds(arr_time - dept_time)
-                halt_time = timer_to_seconds(next_dep_time - arr_time)
-                self.segments.append(
-                    [
-                        TrainData(
-                            number=self.train["train_no"],
-                            start_coords=start_coords,
-                            end_coords=end_coords,
-                            time_allocated=time_allocated,
-                            halt_time=halt_time,
-                        ),
-                        dept_time,
-                    ]
-                )
-        elif len(self.train["schedules"]) == len(self.train["coordinates"]) - 2:
+
+        for i in range(len(self.train["schedules"]) - 1):
+            dept_time = str_to_timer(
+                self.train["schedules"][i]["departure_day"],
+                self.train["schedules"][i]["departure"],
+            )
+            next_arr_time = str_to_timer(
+                self.train["schedules"][i + 1]["arrival_day"],
+                self.train["schedules"][i + 1]["arrival"],
+            )
+            next_dep_time = str_to_timer(
+                self.train["schedules"][i + 1]["departure_day"],
+                self.train["schedules"][i + 1]["departure"],
+            )
+            start_coords = self.train["coordinates"][i + 1]
+            end_coords = self.train["coordinates"][i + 2]
+            time_allocated = timer_to_seconds(next_arr_time - dept_time)
+            halt_time = timer_to_seconds(next_dep_time - next_arr_time)
             self.segments.append(
                 [
                     TrainData(
                         number=self.train["train_no"],
-                        start_coords=self.train["coordinates"][0],
-                        end_coords=self.train["coordinates"][1],
-                        time_allocated=timer_to_seconds(
-                            str_to_timer(
-                                self.train["schedules"][0]["arrival_day"],
-                                self.train["schedules"][0]["arrival"],
-                            )
-                            - self.smallest
-                        ),
-                        halt_time=timer_to_seconds(
-                            str_to_timer(
-                                self.train["schedules"][0]["departure_day"],
-                                self.train["schedules"][0]["departure"],
-                            )
-                            - str_to_timer(
-                                self.train["schedules"][0]["arrival_day"],
-                                self.train["schedules"][0]["arrival"],
-                            )
-                        ),
+                        start_coords=start_coords,
+                        end_coords=end_coords,
+                        time_allocated=time_allocated,
+                        halt_time=halt_time,
                     ),
-                    self.smallest,
+                    dept_time,
                 ]
             )
-            for i in range(len(self.train["schedules"]) - 1):
-                dept_time = str_to_timer(
-                    self.train["schedules"][i]["departure_day"],
-                    self.train["schedules"][i]["departure"],
-                )
-                arr_time = str_to_timer(
-                    self.train["schedules"][i + 1]["arrival_day"],
-                    self.train["schedules"][i + 1]["arrival"],
-                )
-                next_dep_time = str_to_timer(
-                    self.train["schedules"][i + 1]["departure_day"],
-                    self.train["schedules"][i + 1]["departure"],
-                )
-                start_coords = self.train["coordinates"][i]
-                end_coords = self.train["coordinates"][i + 1]
-                time_allocated = timer_to_seconds(arr_time - dept_time)
-                halt_time = timer_to_seconds(next_dep_time - arr_time)
-                self.segments.append(
-                    [
-                        TrainData(
-                            number=self.train["train_no"],
-                            start_coords=start_coords,
-                            end_coords=end_coords,
-                            time_allocated=time_allocated,
-                            halt_time=halt_time,
-                        ),
-                        dept_time,
-                    ]
-                )
-            self.segments.append(
-                [
-                    TrainData(
-                        number=self.train["train_no"],
-                        start_coords=self.train["coordinates"][-2],
-                        end_coords=self.train["coordinates"][-1],
-                        time_allocated=timer_to_seconds(
-                            self.largest
-                            - str_to_timer(
-                                self.train["schedules"][-1]["departure_day"],
-                                self.train["schedules"][-1]["departure"],
-                            )
-                        ),
-                        halt_time=0,
+
+        self.segments.append(
+            [
+                TrainData(
+                    number=self.train["train_no"],
+                    start_coords=self.train["coordinates"][-2],
+                    end_coords=self.train["coordinates"][-1],
+                    time_allocated=timer_to_seconds(
+                        self.largest
+                        - str_to_timer(
+                            self.train["schedules"][-1]["departure_day"],
+                            self.train["schedules"][-1]["departure"],
+                        )
                     ),
-                    str_to_timer(
-                        self.train["schedules"][-1]["departure_day"],
-                        self.train["schedules"][-1]["departure"],
-                    ),
-                ]
-            )
+                    halt_time=0,
+                ),
+                str_to_timer(
+                    self.train["schedules"][-1]["departure_day"],
+                    self.train["schedules"][-1]["departure"],
+                ),
+            ]
+        )
 
     def send_update(self, train_data: TrainData):
         data = train_data.model_dump_json()

@@ -137,6 +137,7 @@ public class TrainController : MonoBehaviour
     {
         int segment_start = EnvironmentManager.getSegment(start);
         int segment_end = EnvironmentManager.getSegment(end);
+        Debug.Log($"Segment start: {segment_start} with coords: {start} and segment end: {segment_end} with coords: {end}");
         if (directionIndex == -1)
         {
             directionIndex = (segment_start < segment_end) ? 0 : 1;
@@ -152,6 +153,8 @@ public class TrainController : MonoBehaviour
             return;
         }
         List<float> pathTimes = EnvironmentManager.getPathTime(path, time);
+        string pathDetails = $"Queue ({TrainNumber}): " + string.Join(" , ", path);
+        Debug.Log(pathDetails);
         for (int i = 0; i < path.Count; i++)
         {
             segments.Enqueue(path[i]);
