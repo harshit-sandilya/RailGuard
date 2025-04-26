@@ -17,7 +17,7 @@ public class TrainController : MonoBehaviour
     private Queue<int> segments;
     private Queue<float> segmentTimes;
     private Queue<float> segmentHaltTimes;
-    private int directionIndex = -1;
+    private int directionIndex;
 
     private GameObject triggerObject;
     private int TrainNumber;
@@ -57,6 +57,7 @@ public class TrainController : MonoBehaviour
 
     private float startTime;
     private float delayTime;
+    private List<int> path_taken;
 
     private enum TrainState { Accelerate, Decelerate, Stop }
     private TrainState state;
@@ -85,6 +86,7 @@ public class TrainController : MonoBehaviour
         endCoords = new Queue<Vector3>();
         timeAllocated = new Queue<float>();
         haltTime = new Queue<float>();
+        path_taken = new List<int>();
 
         segments = new Queue<int>();
         segmentTimes = new Queue<float>();
@@ -114,6 +116,7 @@ public class TrainController : MonoBehaviour
         CreateTriggerCollider();
         TrainNumber = trainData.number;
 
+        setDirection(currStartCoords, currEndCoords);
         processCoordsToSegments(currStartCoords, currEndCoords, currTimeAllocated, currHaltTime);
         popSegment();
         resetMetrics();
@@ -133,15 +136,26 @@ public class TrainController : MonoBehaviour
         startTime = Timer.elapsedSeconds;
     }
 
+    private void setDirection(Vector3 start, Vector3 end)
+    {
+        int segment_start = EnvironmentManager.getSegment(start);
+        int segment_end = EnvironmentManager.getSegment(end);
+        if (segment_start > segment_end)
+        {
+            directionIndex = 1;
+            Debug.Log($"Train {TrainNumber} is moving opposite");
+        }
+        else
+        {
+            directionIndex = 0;
+            Debug.Log($"Train {TrainNumber} is moving along");
+        }
+    }
+
     private void processCoordsToSegments(Vector3 start, Vector3 end, float time, float halt, bool skipFirst = false)
     {
         int segment_start = EnvironmentManager.getSegment(start);
         int segment_end = EnvironmentManager.getSegment(end);
-        Debug.Log($"Segment start: {segment_start} with coords: {start} and segment end: {segment_end} with coords: {end}");
-        if (directionIndex == -1)
-        {
-            directionIndex = (segment_start < segment_end) ? 0 : 1;
-        }
         List<int> path = EnvironmentManager.getPath(segment_start, segment_end);
         if (skipFirst)
         {
@@ -153,8 +167,7 @@ public class TrainController : MonoBehaviour
             return;
         }
         List<float> pathTimes = EnvironmentManager.getPathTime(path, time);
-        string pathDetails = $"Queue ({TrainNumber}): " + string.Join(" , ", path);
-        Debug.Log(pathDetails);
+
         for (int i = 0; i < path.Count; i++)
         {
             segments.Enqueue(path[i]);
@@ -173,14 +186,11 @@ public class TrainController : MonoBehaviour
     private void popSegment()
     {
         currSegment = segments.Dequeue();
+        path_taken.Add(currSegment);
         float time = segmentTimes.Dequeue();
         float halt = segmentHaltTimes.Dequeue();
 
-        List<Track> tracks = EnvironmentManager.getSegmentTracks(currSegment);
-        if (directionIndex == 1)
-        {
-            tracks.Reverse();
-        }
+        List<Track> tracks = EnvironmentManager.getSegmentTracks(currSegment, directionIndex);
         if (tracks == null || tracks.Count == 0)
         {
             Debug.LogError("No tracks found for segment " + currSegment);
@@ -208,11 +218,11 @@ public class TrainController : MonoBehaviour
             Track track = tracks[i];
             Vector3 start = new Vector3(track.start[0], YamlConfigManager.Config.train.height / 2, track.start[1]);
             Vector3 end = new Vector3(track.end[0], YamlConfigManager.Config.train.height / 2, track.end[1]);
-            if (directionIndex == 1)
-            {
-                start = new Vector3(track.end[0], YamlConfigManager.Config.train.height / 2, track.end[1]);
-                end = new Vector3(track.start[0], YamlConfigManager.Config.train.height / 2, track.start[1]);
-            }
+            // if (directionIndex == 1)
+            // {
+            //     start = new Vector3(track.end[0], YamlConfigManager.Config.train.height / 2, track.end[1]);
+            //     end = new Vector3(track.start[0], YamlConfigManager.Config.train.height / 2, track.start[1]);
+            // }
             startCoords.Enqueue(start);
             endCoords.Enqueue(end);
             timeAllocated.Enqueue(trackTimes[i]);
@@ -224,7 +234,6 @@ public class TrainController : MonoBehaviour
         currTimeAllocated = timeAllocated.Dequeue();
         currHaltTime = haltTime.Dequeue();
     }
-
     private void popCoords()
     {
         currStartCoords = startCoords.Dequeue();
@@ -428,6 +437,7 @@ public class TrainController : MonoBehaviour
             }
             else
             {
+                printPathTaken();
                 PyReceiver receiver = FindFirstObjectByType<PyReceiver>();
                 if (receiver != null)
                 {
@@ -436,6 +446,12 @@ public class TrainController : MonoBehaviour
                 Destroy(gameObject);
             }
         }
+    }
+
+    private void printPathTaken()
+    {
+        string pathDetails = $"Path taken by {TrainNumber}: " + string.Join(" -> ", path_taken);
+        Debug.Log(pathDetails);
     }
 
     public void OnTrainIntersection(TrainController otherTrain)

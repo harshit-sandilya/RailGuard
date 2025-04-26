@@ -295,10 +295,55 @@ public class EnvironmentManager : MonoBehaviour
         }
     }
 
+    private static bool isCollinear(Vector2 point1, Vector2 point2, Vector2 point3)
+    {
+        Vector2 v1 = point2 - point1;
+        Vector2 v2 = point3 - point2;
+        float cosineAngle = Vector2.Dot(v1.normalized, v2.normalized);
+        return Mathf.Abs(cosineAngle) > 0.999f;
+    }
+
+    private static void mergeCollinearTracks()
+    {
+        for (int i = 0; i < segments.Count; i++)
+        {
+            List<Track> tracks = segments[i];
+            List<Track> mergedTracks = new List<Track>();
+            Vector2 start = new Vector2(tracks[0].start[0], tracks[0].start[1]);
+            Vector2 end = new Vector2(tracks[0].end[0], tracks[0].end[1]);
+            for (int j = 1; j < tracks.Count; j++)
+            {
+                Vector2 nextStart = new Vector2(tracks[j].start[0], tracks[j].start[1]);
+                Vector2 nextEnd = new Vector2(tracks[j].end[0], tracks[j].end[1]);
+                if (isCollinear(start, end, nextEnd))
+                {
+                    end = nextEnd;
+                }
+                else
+                {
+                    Track mergedTrack = new Track();
+                    mergedTrack.start = new List<float> { start.x, start.y };
+                    mergedTrack.end = new List<float> { end.x, end.y };
+                    mergedTracks.Add(mergedTrack);
+                    start = nextStart;
+                    end = nextEnd;
+                }
+            }
+            Track finalTrack = new Track();
+            finalTrack.start = new List<float> { start.x, start.y };
+            finalTrack.end = new List<float> { end.x, end.y };
+            mergedTracks.Add(finalTrack);
+            segments[i] = mergedTracks;
+        }
+    }
+
     public static void Initialise(List<Station> stationsReceived, List<Track> tracksReceived)
     {
         stations = new EnvironmentStation[stationsReceived.Count];
         formSegments(tracksReceived);
+        printSegemnts();
+        mergeCollinearTracks();
+        printSegemnts();
         isStationList = new List<bool>(new bool[segments.Count]);
         isStationParallel = new List<bool>(new bool[segments.Count]);
         for (int i = 0; i < segments.Count; i++)
@@ -393,11 +438,30 @@ public class EnvironmentManager : MonoBehaviour
         return path;
     }
 
-    public static List<Track> getSegmentTracks(int segmentIndex)
+    public static List<Track> getSegmentTracks(int segmentIndex, int directionIndex = 0)
     {
         if (segmentIndex >= 0 && segmentIndex < segments.Count)
         {
-            return segments[segmentIndex];
+            List<Track> originalTracks = segments[segmentIndex];
+            List<Track> tracksCopy = new List<Track>(originalTracks.Count);
+            foreach (Track originalTrack in originalTracks)
+            {
+                Track trackCopy = new Track();
+                trackCopy.start = new List<float>(originalTrack.start);
+                trackCopy.end = new List<float>(originalTrack.end);
+                tracksCopy.Add(trackCopy);
+            }
+            if (directionIndex == 1)
+            {
+                tracksCopy.Reverse();
+                foreach (Track track in tracksCopy)
+                {
+                    List<float> temp = track.start;
+                    track.start = track.end;
+                    track.end = temp;
+                }
+            }
+            return tracksCopy;
         }
         return null;
     }
