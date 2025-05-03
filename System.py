@@ -28,10 +28,13 @@ class System:
         self.log_watcher = log_watcher
 
         config: Config = read_config()
+        self.config = config
         self.global_python_timer: ResettableTimer = ResettableTimer(
             24 * 60 * 60, config.time.seconds, start_port
         )
-        self.global_environment: Environment = Environment()
+        self.global_environment: Environment = Environment(
+            start_port + 2, self.global_python_timer
+        )
 
         load_dotenv()
         self.UNITY_PATH = os.getenv("UNITY_PATH")
@@ -80,6 +83,7 @@ class System:
         if not self.simulate:
             self.controller.stop()
         self.global_python_timer.stop()
+        self.global_environment.destroy()
         self.router.stop()
         print("[unity] Unity is shutting down...")
         if hasattr(self, "proc"):

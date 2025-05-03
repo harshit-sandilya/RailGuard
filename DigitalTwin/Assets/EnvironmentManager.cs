@@ -232,7 +232,7 @@ public class EnvironmentManager : MonoBehaviour
         return distance;
     }
 
-    private static void printSegemnts()
+    private static void printSegments()
     {
         System.Text.StringBuilder sb = new System.Text.StringBuilder();
         for (int i = 0; i < segments.Count; i++)
@@ -341,9 +341,7 @@ public class EnvironmentManager : MonoBehaviour
     {
         stations = new EnvironmentStation[stationsReceived.Count];
         formSegments(tracksReceived);
-        printSegemnts();
         mergeCollinearTracks();
-        printSegemnts();
         isStationList = new List<bool>(new bool[segments.Count]);
         isStationParallel = new List<bool>(new bool[segments.Count]);
         for (int i = 0; i < segments.Count; i++)
@@ -507,5 +505,45 @@ public class EnvironmentManager : MonoBehaviour
             splitTimes.Add(timePerUnit * distances[i]);
         }
         return splitTimes;
+    }
+
+    public static float getSegmentDistance(int segmentIndex)
+    {
+        if (segmentIndex >= 0 && segmentIndex < segments.Count)
+        {
+            List<Track> originalTracks = segments[segmentIndex];
+            float segmentDistance = 0;
+            for (int j = 0; j < originalTracks.Count; j++)
+            {
+                segmentDistance += Vector2.Distance(new Vector2(originalTracks[j].start[0], originalTracks[j].start[1]), new Vector2(originalTracks[j].end[0], originalTracks[j].end[1]));
+            }
+            return segmentDistance;
+        }
+        return -1;
+    }
+
+    public static float getRemainingDistance(int segmentIndex, Vector3 coords, Vector3 endCoords)
+    {
+        if (segmentIndex >= 0 && segmentIndex < segments.Count)
+        {
+            List<Track> originalTracks = segments[segmentIndex];
+            float segmentDistance = 0;
+            bool foundTrack = false;
+            for (int j = 0; j < originalTracks.Count; j++)
+            {
+                if (originalTracks[j].end[0] == endCoords.x && originalTracks[j].end[1] == endCoords.z)
+                {
+                    foundTrack = true;
+                    segmentDistance += Vector2.Distance(new Vector2(coords.x, coords.z), new Vector2(originalTracks[j].end[0], originalTracks[j].end[1]));
+                    continue;
+                }
+                if (foundTrack)
+                {
+                    segmentDistance += Vector2.Distance(new Vector2(originalTracks[j].start[0], originalTracks[j].start[1]), new Vector2(originalTracks[j].end[0], originalTracks[j].end[1]));
+                }
+            }
+            return segmentDistance;
+        }
+        return -1;
     }
 }

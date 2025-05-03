@@ -8,6 +8,7 @@ class LogWatcher:
         self.log_file_path = log_file_path
         self.open_file()
         self.last_position = 0
+        self.last_check_line = 0
         print("[Log Watcher] Log file opened.")
 
     def open_file(self):
@@ -26,10 +27,6 @@ class LogWatcher:
             for line in self.file:
                 if collision_marker in line:
                     collision_count += 1
-
-            print(
-                f"[Log Watcher] Found {collision_count} collision(s) in the log file."
-            )
             return collision_count
 
         finally:
@@ -71,7 +68,9 @@ class LogWatcher:
             self.last_position = self.file.tell()
 
             for line in new_lines:
-                if marker in line:
+                is_in_line = marker in line
+                # print(f"[UNITY] {line} #{is_in_line}")
+                if is_in_line:
                     with found_lock:
                         print(
                             f"[Log Watcher] Found (forward): '{marker}' in line: {line.strip()}"
@@ -90,3 +89,14 @@ class LogWatcher:
         backward_thread.join(timeout=1.0)
 
         return found_marker
+
+    def check_marker(self, marker, change_flag):
+        self.file.seek(self.last_check_line)
+        new_lines = self.file.readlines()
+        if change_flag:
+            self.last_check_line = self.file.tell()
+        for line in new_lines:
+            if marker in line:
+                print(f"[Log Watcher] Found: '{marker}' in line: {line.strip()}")
+                return True
+        return False

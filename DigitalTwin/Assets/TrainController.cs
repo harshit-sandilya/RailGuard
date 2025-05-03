@@ -1,11 +1,14 @@
 using UnityEngine;
 using System;
-using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading;
 using System.Net.Sockets;
 using System.Collections.Generic;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System.Reflection;
+using System.Linq;
 
 public class TrainController : MonoBehaviour
 {
@@ -58,6 +61,7 @@ public class TrainController : MonoBehaviour
     private float startTime;
     private float delayTime;
     private List<int> path_taken;
+    private float segmentDistanceRemaining;
 
     private enum TrainState { Accelerate, Decelerate, Stop }
     private TrainState state;
@@ -96,10 +100,6 @@ public class TrainController : MonoBehaviour
         currEndCoords = new Vector3(trainData.end_coords[0] * 1000, YamlConfigManager.Config.train.height / 2, trainData.end_coords[1] * 1000);
         currTimeAllocated = trainData.time_allocated;
         currHaltTime = trainData.halt_time;
-
-        // Debug.Log($"Train initialized with start coords: {currStartCoords} and end coords: {currEndCoords} to complete in {currTimeAllocated} seconds and halt for {currHaltTime} seconds. Start from: {segment_start} and end at: {segment_end}");
-        // string pathDetails = "Path: " + string.Join(" -> ", path);
-        // Debug.Log(pathDetails);
 
         this.port = port;
         udpClient = new UdpClient();
@@ -189,6 +189,7 @@ public class TrainController : MonoBehaviour
         path_taken.Add(currSegment);
         float time = segmentTimes.Dequeue();
         float halt = segmentHaltTimes.Dequeue();
+        segmentDistanceRemaining = EnvironmentManager.getSegmentDistance(currSegment);
 
         List<Track> tracks = EnvironmentManager.getSegmentTracks(currSegment, directionIndex);
         if (tracks == null || tracks.Count == 0)
@@ -218,11 +219,6 @@ public class TrainController : MonoBehaviour
             Track track = tracks[i];
             Vector3 start = new Vector3(track.start[0], YamlConfigManager.Config.train.height / 2, track.start[1]);
             Vector3 end = new Vector3(track.end[0], YamlConfigManager.Config.train.height / 2, track.end[1]);
-            // if (directionIndex == 1)
-            // {
-            //     start = new Vector3(track.end[0], YamlConfigManager.Config.train.height / 2, track.end[1]);
-            //     end = new Vector3(track.start[0], YamlConfigManager.Config.train.height / 2, track.start[1]);
-            // }
             startCoords.Enqueue(start);
             endCoords.Enqueue(end);
             timeAllocated.Enqueue(trackTimes[i]);
@@ -242,46 +238,100 @@ public class TrainController : MonoBehaviour
         currHaltTime = haltTime.Dequeue();
     }
 
-    private bool IsValidTrainData(TrainData data)
+    private void handleControlSignals(Control control)
     {
-        return data.start_coords != null && data.end_coords != null &&
-               data.start_coords.Count >= 2 && data.end_coords.Count >= 2;
+        List<int> tempSegments = new List<int>();
+        List<float> times = new List<float>();
+
+        while (segments.Count > 0)
+        {
+            tempSegments.Add(segments.Dequeue());
+            times.Add(segmentHaltTimes.Dequeue());
+        }
+        if (tempSegments.Count == 0)
+        {
+            Debug.Log("Control signal received but no segments to update.");
+            return;
+        }
+        tempSegments[0] = control.next_segment;
+        times[0] = control.next_halt_time;
+        Debug.Log($"Updated the control signal. New Segment order: {string.Join(", ", tempSegments)} and times: {string.Join(", ", times)}");
+        segments.Clear();
+        segmentHaltTimes.Clear();
+        for (int i = 0; i < tempSegments.Count; i++)
+        {
+            segments.Enqueue(tempSegments[i]);
+            segmentHaltTimes.Enqueue(times[i]);
+        }
     }
 
-    private bool IsValidGPSData(GPSData data)
+    private bool IsJsonFullyMatching<T>(string json)
     {
-        return data.coords != Vector3.zero || data.direction != Vector3.zero || data.speed != 0;
+        try
+        {
+            var jsonFields = JObject.Parse(json).Properties();
+            var targetFields = typeof(T).GetFields(BindingFlags.Public | BindingFlags.Instance);
+            // Debug.Log("Target properties: " + string.Join(", ", targetFields.Select(p => p.Name)));
+            // Debug.Log("JSON properties: " + string.Join(", ", jsonFields.Select(p => p.Name)));
+
+            foreach (var field in targetFields)
+            {
+                if (!jsonFields.Any(p => p.Name.Equals(field.Name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return false;
+                }
+            }
+
+            foreach (var jsonField in jsonFields)
+            {
+                if (!targetFields.Any(p => p.Name.Equals(jsonField.Name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("Error validating JSON structure: " + ex.Message);
+            return false;
+        }
     }
 
     private void HandleString(string message)
     {
+        // Debug.Log($"Received message: {message} | Is Valid GPSData: {IsJsonFullyMatching<GPSData>(message)} | Is Valid TrainData: {IsJsonFullyMatching<TrainData>(message)} | Is Valid Control: {IsJsonFullyMatching<Control>(message)}");
+        int index = IsJsonFullyMatching<GPSData>(message) ? 0 : (IsJsonFullyMatching<Control>(message) ? 1 : (IsJsonFullyMatching<TrainData>(message) ? 2 : -1));
         try
         {
-            TrainData trainData = JsonUtility.FromJson<TrainData>(message);
-            if (trainData != null && IsValidTrainData(trainData))
-            {
-                Debug.Log("Received TrainData for train #" + trainData.number);
-                Vector3 start_coords = new Vector3(trainData.start_coords[0] * 1000, YamlConfigManager.Config.train.height / 2, trainData.start_coords[1] * 1000);
-                Vector3 end_coords = new Vector3(trainData.end_coords[0] * 1000, YamlConfigManager.Config.train.height / 2, trainData.end_coords[1] * 1000);
-                processCoordsToSegments(start_coords, end_coords, trainData.time_allocated, trainData.halt_time, true);
-            }
-        }
-        catch (Exception)
-        {
-            ;
-        }
 
-        try
-        {
-            GPSData gpsData = JsonUtility.FromJson<GPSData>(message);
-            if (gpsData != null && IsValidGPSData(gpsData))
+            switch (index)
             {
-                ;
+                case 0: break;
+                case 1:
+                    Control control = JsonConvert.DeserializeObject<Control>(message);
+                    handleControlSignals(control);
+                    break;
+                case 2:
+                    TrainData trainData = JsonConvert.DeserializeObject<TrainData>(message);
+                    Debug.Log("Received TrainData for train #" + trainData.number);
+                    Vector3 start_coords = new Vector3(trainData.start_coords[0] * 1000, YamlConfigManager.Config.train.height / 2, trainData.start_coords[1] * 1000);
+                    Vector3 end_coords = new Vector3(trainData.end_coords[0] * 1000, YamlConfigManager.Config.train.height / 2, trainData.end_coords[1] * 1000);
+                    processCoordsToSegments(start_coords, end_coords, trainData.time_allocated, trainData.halt_time, true);
+                    break;
+                default: Debug.LogError("Invalid message format: " + message); return;
             }
+        }
+        catch (JsonException ex)
+        {
+            Debug.LogError("Error deserializing message: " + ex.Message);
+            return;
         }
         catch (Exception ex)
         {
-            Debug.LogError("Error parsing JSON data: " + ex.Message + "\nRaw message: " + message);
+            Debug.LogError("Unexpected error: " + ex.Message);
+            return;
         }
     }
 
@@ -298,10 +348,11 @@ public class TrainController : MonoBehaviour
             GPSData gpsData = new GPSData
             {
                 coords = currCoords,
+                segment = currSegment,
+                next_segment = segments.Count > 0 ? segments.Peek() : 7,
                 speed = speed,
-                direction = direction,
-                delay = delayTime,
-                distanceRemaining = distanceRemaining,
+                direction = directionIndex,
+                distanceRemaining = EnvironmentManager.getRemainingDistance(currSegment, currCoords, currEndCoords),
             };
             string jsonString = JsonUtility.ToJson(gpsData);
             byte[] sendData = Encoding.UTF8.GetBytes(jsonString);

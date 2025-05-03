@@ -3,18 +3,20 @@ from pydantic import BaseModel
 
 class TrainObject(BaseModel):
     curr_segment: int
-    distance_remaining: float
+    next_segment: int
     speed: float
-    delay: int
+    distance_remaining: float
     direction: int
+    last_updated: int
 
     def __init__(self, **data):
         defaults = {
-            "curr_segment": -1,
-            "distance_remaining": -1,
-            "speed": -1,
-            "delay": -1,
-            "direction": -1,
+            "curr_segment": 7,
+            "next_segment": 7,
+            "speed": 0,
+            "distance_remaining": 0,
+            "direction": 0,
+            "last_updated": 0,
         }
 
         defaults.update(data)

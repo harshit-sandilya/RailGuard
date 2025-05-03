@@ -2,6 +2,7 @@ import json
 import socket
 import struct
 import threading
+from pydantic import ValidationError
 
 from schema import GPSData
 
@@ -30,6 +31,7 @@ class TrainListeners:
             )
             self.udp_threads.append(udp_thread)
             udp_thread.start()
+            self.isRunning[i] = True
         print(f"[CONTROLLER: TRAIN LISTENERS] Started {self.train_count} UDP servers.")
 
     def stop(self):
@@ -74,8 +76,10 @@ class TrainListeners:
                 print(
                     f"[CONTROLLER: TRAIN LISTENERS: UDP Port {udp_port}] [!] JSON decode error"
                 )
+            except ValidationError:
+                continue
             except Exception as e:
                 print(
-                    f"[CONTROLLER: TRAIN LISTENERS: UDP Port {udp_port}] [!] Error while receiving data: {e}"
+                    f"[CONTROLLER: TRAIN LISTENERS: UDP Port {udp_port}] [!] Error while receiving data"
                 )
         udp_socket.close()

@@ -4,6 +4,7 @@ from .initial import InitialData
 from .timer import TimerFormat
 from .train_coords import TrainData
 from .trains import TrainObject
+from .control import Control
 
 __all__ = [
     "InitialData",
@@ -12,4 +13,5 @@ __all__ = [
     "Config",
     "TrainObject",
     "GPSData",
+    "Control",
 ]

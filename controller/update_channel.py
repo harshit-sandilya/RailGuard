@@ -7,11 +7,11 @@ from schema import InitialData
 
 
 class UpdateChannel:
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     isRunning = False
     thread = None
 
     def __init__(self, environment, port):
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.environment = environment
         self.port = port

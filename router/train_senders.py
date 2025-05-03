@@ -131,7 +131,7 @@ class TrainSender:
         try:
             self.udp_socket.sendto(data.encode("utf-8"), self.multicast_group)
             print(
-                f"[ROUTER: TRAIN] Sent data: {data} for train {self.train['train_no']}"
+                f"[ROUTER: TRAIN] Sent data: {data} for train {self.train['train_no']} on port {self.port}"
             )
         except socket.error as e:
             print(

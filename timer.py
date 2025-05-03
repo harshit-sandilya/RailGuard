@@ -73,7 +73,6 @@ class ResettableTimer(threading.Thread):
 
             except Exception as e:
                 print(f"[TIMER] Error receiving UDP data: {e}")
-        self.udp_socket.close()
 
     def run(self):
         """Function that runs in the thread to keep track of time."""
@@ -95,6 +94,7 @@ class ResettableTimer(threading.Thread):
     def stop(self):
         """Stops the timer thread."""
         self.running = False
+        self.udp_socket.close()
         self.udp_thread.join()
         self.timer_thread.join()
         print("[TIMER] Timer stopped.")
