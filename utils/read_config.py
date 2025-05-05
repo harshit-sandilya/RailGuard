@@ -4,7 +4,7 @@ from schema import Config
 
 
 def read_config() -> Config:
-    with open("config.yaml", "r") as f:
+    with open("/Users/harshit/Projects/RailGuard/config.yaml", "r") as f:
         config = yaml.safe_load(f)
         if "friction-coefficient" in config["physics"]:
             config["physics"]["friction_coefficient"] = config["physics"].pop(

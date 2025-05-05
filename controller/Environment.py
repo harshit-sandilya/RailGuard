@@ -147,6 +147,16 @@ class Environment:
 
         reward = 10
 
+        allInactive = True
+
+        for i in range(self.no_trains):
+            if self.isRunning[i]:
+                allInactive = False
+                break
+
+        if allInactive:
+            reward = min(reward, 0)
+
         if is_collision:
             reward = min(reward, -10)
 

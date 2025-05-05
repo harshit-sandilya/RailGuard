@@ -15,7 +15,7 @@ class rlEnv(Env):
         super(rlEnv, self).__init__()
         self.objects = 4
         self.index = 0
-        self.log_file_path = "logs/unity_log.txt"
+        # self.log_file_path = f"./logs/unity_log_{self.index}.txt"
         self.port = 8080
         self.system_is_running = False
         self.collisions = 0
@@ -67,18 +67,20 @@ class rlEnv(Env):
         }
 
     def reset(self, seed=None, options=None):
-        self.index += 1
-        if self.index > max_index:
-            self.index = 0
         print("Resetting environment...")
         super().reset(seed=seed)
         if self.system_is_running:
             self.system.stop()
             self.system_is_running = False
+            del self.log_watcher
+            del self.system
 
-        self.log_watcher = LogWatcher(self.log_file_path)
+        self.log_file_path = (
+            f"/Users/harshit/Projects/RailGuard/logs/unity_log_{self.index}.txt"
+        )
         with open(self.log_file_path, "w") as f:
             f.write("")
+        self.log_watcher = LogWatcher(self.log_file_path)
         self.system = System(
             trains=keys[self.index][1],
             stations=keys[self.index][0],
@@ -95,6 +97,9 @@ class rlEnv(Env):
         self.collisions = 0
         state = self._get_initial_state()
         self.observation = state
+        self.index += 1
+        if self.index > max_index:
+            self.index = 0
         return state, {"env_state": "reset"}
 
     def step(self, action):
@@ -111,6 +116,9 @@ class rlEnv(Env):
             action, is_collision, self.observation, self.step_count
         )
         self.observation = observation
+        print(
+            f"Step: {self.step_count}, Reward: {reward}, Done: {done} Observation: {observation}"
+        )
         return observation, reward, done, trucated, info
 
     def close(self):

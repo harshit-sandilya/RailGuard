@@ -39,7 +39,9 @@ class System:
         load_dotenv()
         self.UNITY_PATH = os.getenv("UNITY_PATH")
         self.base_dir = dir_resolver[(stations, trains)]
-        self.PROJECT_PATH = os.path.abspath("DigitalTwin")
+        self.PROJECT_PATH = os.path.abspath(
+            "/Users/harshit/Projects/RailGuard/DigitalTwin"
+        )
         self.LOG_FILE = log_file_path
 
         self.controller = Controller(self.global_environment, trains, start_port + 1)

@@ -13,6 +13,9 @@ if not os.path.exists("./logs"):
     os.makedirs("./logs")
 
 
+tensorboard_dir = os.path.join("./logs", "tensorboard")
+
+
 def env_creator():
     return rlEnv()
 
@@ -28,26 +31,15 @@ config = (
     .api_stack(
         enable_env_runner_and_connector_v2=False, enable_rl_module_and_learner=False
     )
+    .training(gamma=0.9)
 )
 
 tune_config = config.to_dict()
-# results_path = os.path.join(os.path.dirname(__file__), "ray_results")
+results_path = os.path.join(os.path.dirname(__file__), "ray_results")
 tune.run(
     "PPO",
     config=tune_config,
     stop={"training_iteration": 10},
-    storage_path="./logs",
+    storage_path=results_path,
     checkpoint_at_end=True,
 )
-
-
-# algorithm = config.build_algo()
-
-# try:
-#     result = algorithm.train()
-# except KeyboardInterrupt:
-#     print("Training interrupted, cleaning up...")
-# finally:
-#     algorithm.stop()
-#     ray.shutdown()
-#     print("Training complete, Ray shut down.")
