@@ -1,6 +1,6 @@
 import os
-import time
 import threading
+import time
 
 
 class LogWatcher:
@@ -40,7 +40,6 @@ class LogWatcher:
 
         def backward_search():
             nonlocal found_marker
-            current_position = self.last_position
             self.file.seek(0)
             backward_lines = self.file.readlines()
 

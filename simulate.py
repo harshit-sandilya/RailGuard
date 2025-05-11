@@ -1,7 +1,8 @@
 import argparse
-from System import System
-from LogWatcher import LogWatcher
 import os
+
+from LogWatcher import LogWatcher
+from System import System
 
 parser = argparse.ArgumentParser(
     description="Run the RailGuard simulation as a whole for a collision report"

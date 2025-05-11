@@ -1,10 +1,11 @@
-from gymnasium import Env, spaces
-import numpy as np
-from utils.dir_resolver import dir_resolver
-from LogWatcher import LogWatcher
-import os
-from System import System
 import time
+
+import numpy as np
+from gymnasium import Env, spaces
+
+from LogWatcher import LogWatcher
+from System import System
+from utils.dir_resolver import dir_resolver
 
 keys = list(dir_resolver.keys())
 max_index = keys.__len__() - 1
@@ -21,6 +22,7 @@ class rlEnv(Env):
         self.collisions = 0
         self.observation = None
         self.step_count = 0
+        self.rewards = np.array([])
 
         self.observation_space = spaces.Dict(
             {
@@ -115,10 +117,11 @@ class rlEnv(Env):
         reward = self.system.global_environment.process_action(
             action, is_collision, self.observation, self.step_count
         )
+        self.rewards = np.append(self.rewards, reward)
+        rewards_file_path = "/Users/harshit/Projects/RailGuard/logs/rewards.npy"
+        np.save(rewards_file_path, self.rewards)
         self.observation = observation
-        print(
-            f"Step: {self.step_count}, Reward: {reward}, Done: {done} Observation: {observation}"
-        )
+        print(f"Step: {self.step_count} Observation: {observation}")
         return observation, reward, done, trucated, info
 
     def close(self):

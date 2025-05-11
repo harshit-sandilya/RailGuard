@@ -1,10 +1,10 @@
+import socket
+import threading
 from typing import List
 
 import numpy as np
-import socket
-import threading
 
-from schema import GPSData, InitialData, TrainObject, Control
+from schema import Control, GPSData, InitialData, TrainObject
 from utils import group_tracks_into_branches
 
 
@@ -74,7 +74,7 @@ class Environment:
         self.trains[index].curr_segment = gpsData.segment
         self.trains[index].next_segment = gpsData.next_segment
         self.trains[index].speed = max(gpsData.speed, 0)
-        self.trains[index].distance_remaining = gpsData.distanceRemaining
+        self.trains[index].distance_remaining = max(gpsData.distanceRemaining, 0)
         self.trains[index].direction = gpsData.direction
         self.trains[index].last_updated = self.timer.elapsed_time
         self.isRunning[index] = True
@@ -98,9 +98,9 @@ class Environment:
             observations[f"train_{i}"] = {
                 "segment": train.curr_segment,
                 "next_segment": train.next_segment,
-                "speed": np.array([train.speed], dtype=np.float32),
+                "speed": np.array([max(train.speed, 0)], dtype=np.float32),
                 "distance_remaining": np.array(
-                    [train.distance_remaining], dtype=np.float32
+                    [max(train.distance_remaining, 0)], dtype=np.float32
                 ),
                 "direction": train.direction,
             }
@@ -186,9 +186,9 @@ class Environment:
                     i, action[i]["next_segment"], action[i]["next_halt_time"]
                 )
 
-        print(
-            f"Step {step_count}: {reward} for {[int(action[i]['next_segment']) for i in range(self.no_trains)]} and {[observation[i]['segment'] for i in range(self.no_trains)]}"
-        )
+        # print(
+        #     f"Step {step_count}: {reward} for {[int(action[i]['next_segment']) for i in range(self.no_trains)]} and {[observation[i]['segment'] for i in range(self.no_trains)]}"
+        # )
 
         return reward
 

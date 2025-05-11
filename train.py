@@ -1,8 +1,10 @@
-import ray
-from ray.rllib.algorithms.ppo import PPOConfig
-from rlEnv import rlEnv
-from ray import tune
 import os
+
+import ray
+from ray import tune
+from ray.rllib.algorithms.ppo import PPOConfig
+
+from rlEnv import rlEnv
 
 if ray.is_initialized():
     ray.shutdown()

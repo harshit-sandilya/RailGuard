@@ -83,3 +83,4 @@ Icon
 .vscode/
 .ruff_cache/
 .env
+ray_results/

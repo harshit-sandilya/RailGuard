@@ -2,6 +2,7 @@ import json
 import socket
 import struct
 import threading
+
 from pydantic import ValidationError
 
 from schema import GPSData
@@ -78,7 +79,7 @@ class TrainListeners:
                 )
             except ValidationError:
                 continue
-            except Exception as e:
+            except Exception:
                 print(
                     f"[CONTROLLER: TRAIN LISTENERS: UDP Port {udp_port}] [!] Error while receiving data"
                 )

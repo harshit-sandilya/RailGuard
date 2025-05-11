@@ -1,8 +1,9 @@
 import argparse
-from System import System
-from LogWatcher import LogWatcher
 import os
 import time
+
+from LogWatcher import LogWatcher
+from System import System
 
 parser = argparse.ArgumentParser(
     description="Run the RailGuard system as a whole for a scenario"

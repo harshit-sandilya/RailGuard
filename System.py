@@ -1,12 +1,14 @@
-from utils import dir_resolver, read_config
-from schema import Config
-from Timer import ResettableTimer
-from controller import Controller, Environment
-from router import Router
-from dotenv import load_dotenv
 import os
 import subprocess
 import time
+
+from dotenv import load_dotenv
+
+from controller import Controller, Environment
+from router import Router
+from schema import Config
+from Timer import ResettableTimer
+from utils import dir_resolver, read_config
 
 
 class System:
@@ -44,7 +46,9 @@ class System:
         )
         self.LOG_FILE = log_file_path
 
-        self.controller = Controller(self.global_environment, trains, start_port + 1)
+        self.controller = Controller(
+            self.global_environment, self.trains, start_port + 1
+        )
         self.router = Router(
             self.base_dir,
             start_port + 1,
