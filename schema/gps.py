@@ -9,7 +9,8 @@ class Vector3(BaseModel):
 
 class GPSData(BaseModel):
     coords: Vector3
+    segment: int
+    next_segment: int
     speed: float = 0.0
-    direction: Vector3
-    delay: int = 0
     distanceRemaining: float = 0.0
+    direction: int

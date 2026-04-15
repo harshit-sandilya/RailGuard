@@ -5,11 +5,11 @@ using System.Threading;
 using System;
 using System.Collections.Generic;
 using System.Text;
-
+using Newtonsoft.Json.Linq;
 public class PyReceiver : MonoBehaviour
 {
-    private const int PORT = 8080;
-    private const int UDP_PORT = 8081;
+    private int PORT;
+    private int UDP_PORT;
     private const string MULTICAST_GROUP = "224.0.0.1";
     private UdpClient udpListener;
     private List<UdpClient> udpClients = new List<UdpClient>();
@@ -18,11 +18,18 @@ public class PyReceiver : MonoBehaviour
     private Dictionary<int, GameObject> activeTrains = new Dictionary<int, GameObject>();
     public int no_trains;
 
+    public bool routerCompleted = false;
+    private Thread completionCheckThread;
+    private const int TRAIN_LAYER = 8;
+
     void Start()
     {
+        Physics.IgnoreLayerCollision(TRAIN_LAYER, TRAIN_LAYER, true);
         Thread tcpThread = new Thread(StartTCPServer);
         tcpThread.IsBackground = true;
         tcpThread.Start();
+        PORT = YamlConfigManager.Config.port + 1;
+        UDP_PORT = PORT + 1;
     }
 
     void Update()
@@ -44,7 +51,8 @@ public class PyReceiver : MonoBehaviour
             IPAddress multicastAddress = IPAddress.Parse(MULTICAST_GROUP);
             udpListener.JoinMulticastGroup(multicastAddress);
             IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
-            Debug.Log("Server started, waiting for Python connection...");
+            Debug.Log($"Server started at {PORT}, waiting for Python connection...");
+            Debug.Log("== SERVER STARTED ==");
 
             while (isRunning)
             {
@@ -53,11 +61,30 @@ public class PyReceiver : MonoBehaviour
                     byte[] data = udpListener.Receive(ref remoteEndPoint);
                     string jsonString = Encoding.UTF8.GetString(data);
                     Debug.Log($"Received multicast data from {remoteEndPoint}");
+
+                    if (jsonString == "== ROUTER FINISH ==")
+                    {
+                        Debug.Log("Router finished processing!");
+                        mainThreadActions.Enqueue(() =>
+                        {
+                            routerCompleted = true;
+                            if (completionCheckThread == null || !completionCheckThread.IsAlive)
+                            {
+                                completionCheckThread = new Thread(CheckForCompletion);
+                                completionCheckThread.IsBackground = true;
+                                completionCheckThread.Start();
+                            }
+                        });
+                        continue;
+                    }
+
                     if (!string.IsNullOrEmpty(jsonString))
                     {
                         try
                         {
-                            InitialData initialData = JsonUtility.FromJson<InitialData>(jsonString);
+                            JObject jsonObject = JObject.Parse(jsonString);
+                            InitialData initialData = jsonObject.ToObject<InitialData>();
+
                             if (initialData != null && initialData.stations.Count > 0)
                             {
                                 Debug.Log("Spawning Stations");
@@ -88,6 +115,26 @@ public class PyReceiver : MonoBehaviour
         catch (Exception ex)
         {
             Debug.LogError("Server error: " + ex.Message);
+        }
+    }
+
+    void CheckForCompletion()
+    {
+        Debug.Log("Starting completion check thread");
+        while (isRunning)
+        {
+            bool noActiveTrains = false;
+            mainThreadActions.Enqueue(() =>
+            {
+                noActiveTrains = activeTrains.Count == 0;
+            });
+            Thread.Sleep(500);
+            if (routerCompleted && noActiveTrains)
+            {
+                Debug.Log("== COMPLETED ==");
+                break;
+            }
+            Thread.Sleep(1000);
         }
     }
 
@@ -186,19 +233,49 @@ public class PyReceiver : MonoBehaviour
             }
             SpawnTrack(start, end, i);
         }
-        Debug.Log("testing friction values...");
-        FrictionManager.Initialise(longestTrack);
 
+        try
+        {
+            FrictionManager.Initialise(longestTrack);
+            Debug.Log("FrictionManager.Initialise completed successfully");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("Error in FrictionManager.Initialise: " + ex.Message);
+            return;
+        }
+
+        Debug.Log("SpawnStationsAndSendReady: About to start UDP servers");
+        Debug.Log($"{YamlConfigManager.Config.entities.trains} trains to spawn");
         for (int i = 0; i < YamlConfigManager.Config.entities.trains; i++)
         {
-            int port = 8081 + i;
+            int port = UDP_PORT + i;
             Thread udpThread = new Thread(() => StartUDPServer(port));
             udpThread.IsBackground = true;
             udpThread.Start();
         }
 
-        EnvironmentManager.Initialise(data.stations, data.tracks);
-        StartCoroutine(WaitForFrictionManagerCoroutine(senderEndPoint));
+        Debug.Log("SpawnStationsAndSendReady: About to initialize EnvironmentManager");
+        try
+        {
+            EnvironmentManager.Initialise(data.stations, data.tracks);
+            Debug.Log("EnvironmentManager.Initialise completed successfully");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("Error in EnvironmentManager.Initialise: " + ex.Message + "\n" + ex.StackTrace);
+            return;
+        }
+        try
+        {
+            StartCoroutine(WaitForFrictionManagerCoroutine(senderEndPoint));
+            Debug.Log("Coroutine started successfully");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("Error starting coroutine: " + ex.Message + "\n" + ex.StackTrace);
+            return;
+        }
     }
 
     private IEnumerator<UnityEngine.WaitUntil> WaitForFrictionManagerCoroutine(IPEndPoint senderEndPoint)
@@ -268,6 +345,7 @@ public class PyReceiver : MonoBehaviour
         newTrain.transform.rotation = Quaternion.Euler(0, angle, 0);
 
         newTrain.name = "train." + train.number;
+        newTrain.layer = TRAIN_LAYER;
 
         Renderer renderer = newTrain.GetComponent<Renderer>();
         if (renderer != null)
@@ -297,6 +375,15 @@ public class PyReceiver : MonoBehaviour
         activeTrains[train.number] = newTrain;
 
         Debug.Log($"Train created: {train.number}");
+    }
+
+    public void RemoveTrain(int trainNumber)
+    {
+        if (activeTrains.ContainsKey(trainNumber))
+        {
+            activeTrains.Remove(trainNumber);
+            Debug.Log($"Train {trainNumber} removed. Active trains remaining: {activeTrains.Count}");
+        }
     }
 
     void OnApplicationQuit()

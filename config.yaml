@@ -2,21 +2,12 @@
 # This YAML file contains various configurable parameters for the RailGuard simulation.
 # Each section defines a specific aspect of the simulation, such as entity settings, physics, train properties, and control system configurations.
 
-data-dir: "examples/2stations2trains1day(cross)" # Directory where the trains to be simulated are stored.
-
-# ============================================
-# ENTITY CONFIGURATION
-# ============================================
-entities:
-    stations: 2  # Defines the number of train stations present on the map.
-    trains: 2    # Specifies how many trains are active in the simulation.
-
 # ============================================
 # STATION CONFIGURATION
 # ============================================
 station:
     length: 250 # Station length in meters.
-    width: 100 # Station width in meters.
+    width: 100  # Station width in meters.
     height: 100 # Station height in meters.
 
 # ============================================
@@ -35,15 +26,15 @@ physics:
 # TRAIN CONFIGURATION
 # ============================================
 train:
-    length: 300          # Train length in meters.
-    width: 100           # Train width in meters.
-    height: 100          # Train height in meters.
-    mass: 500000         # Train's total mass in kilograms.
-    hp: 120000           # Train's horsepower (power output of the engine).
-    brake-force: 634500  # Maximum braking force in Newtons, determining stopping power.
+    length: 300             # Train length in meters.
+    width: 100              # Train width in meters.
+    height: 100             # Train height in meters.
+    mass: 500000            # Train's total mass in kilograms.
+    hp: 120000              # Train's horsepower (power output of the engine).
+    brake-force: 634500     # Maximum braking force in Newtons, determining stopping power.
     tractive-effort: 612000 # Maximum tractive effort in Newtons, determining the train's pulling power.
-    max-speed: 36        # Maximum speed of the train in meters per second (~129 km/h).
-    max-acceleration: 2  # Maximum acceleration in meters per second squared (m/s²).
+    max-speed: 36           # Maximum speed of the train in meters per second (~129 km/h).
+    max-acceleration: 2     # Maximum acceleration in meters per second squared (m/s²).
 
 # ============================================
 # TRAIN CONTROL SYSTEM CONFIGURATION

@@ -7,7 +7,6 @@ public class InitialData
 {
     public List<Station> stations;
     public List<Track> tracks;
-    public int trains;
 }
 
 [Serializable]
@@ -39,8 +38,15 @@ public class TrainData
 public class GPSData
 {
     public Vector3 coords;
+    public int segment;
+    public int next_segment;
     public float speed;
-    public Vector3 direction;
-    public float delay;
     public float distanceRemaining;
+    public int direction;
+}
+
+public class Control
+{
+    public int next_segment;
+    public int next_halt_time;
 }

@@ -4,7 +4,6 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using UnityEngine;
-using System.Collections.Generic;
 
 public struct TimerFormat
 {
@@ -26,16 +25,16 @@ public class Timer : MonoBehaviour
 {
     public static int elapsedSeconds;
     public static int elapsedDays;
-    private float second = YamlConfigManager.Config.time.seconds;
-    private int hours_in_day = 24;
-    private int max_seconds = 24 * 60 * 60 - 1;
+    private readonly float second = YamlConfigManager.Config.time.seconds;
+    private readonly int hours_in_day = 24;
+    private readonly int max_seconds = 24 * 60 * 60 - 1;
 
     private bool isRunning;
-    private const int UDP_PORT = 8079;
+    private int UDP_PORT = YamlConfigManager.Config.port;
     private Thread udpThread;
     private UdpClient udpClient;
     private IPEndPoint remoteEndPoint;
-    private readonly object lockObj = new object();
+    private readonly object lockObj = new();
 
     private static Timer instance;
 
@@ -58,10 +57,11 @@ public class Timer : MonoBehaviour
         elapsedDays = 0;
         Time.fixedDeltaTime = second;
 
+        Application.quitting += StopRunning;
+
+        // Initialize UDP components
         udpClient = new UdpClient(UDP_PORT);
         remoteEndPoint = new IPEndPoint(IPAddress.Loopback, UDP_PORT);
-
-        Application.quitting += StopRunning;
     }
 
     void FixedUpdate()
@@ -87,8 +87,8 @@ public class Timer : MonoBehaviour
         {
             return new TimerFormat(
                 elapsedDays,
-                (elapsedSeconds / 3600) % instance.hours_in_day,
-                (elapsedSeconds % 3600) / 60,
+                elapsedSeconds / 3600 % instance.hours_in_day,
+                elapsedSeconds % 3600 / 60,
                 elapsedSeconds % 60
             );
         }
@@ -146,6 +146,6 @@ public class SyncData
     public SyncData(int elapsed_time, int hour, int minute, int second, int millisecond)
     {
         this.elapsed_time = elapsed_time;
-        this.system_time = new int[] { hour, minute, second, millisecond };
+        this.system_time = new[] { hour, minute, second, millisecond };
     }
 }

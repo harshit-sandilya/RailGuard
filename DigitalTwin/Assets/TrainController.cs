@@ -1,11 +1,14 @@
 using UnityEngine;
 using System;
-using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading;
 using System.Net.Sockets;
 using System.Collections.Generic;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System.Reflection;
+using System.Linq;
 
 public class TrainController : MonoBehaviour
 {
@@ -14,10 +17,19 @@ public class TrainController : MonoBehaviour
     private Queue<float> timeAllocated;
     private Queue<float> haltTime;
 
+    private Queue<int> segments;
+    private Queue<float> segmentTimes;
+    private Queue<float> segmentHaltTimes;
+    private int directionIndex;
+
+    private GameObject triggerObject;
+    private int TrainNumber;
+
     [SerializeField] Vector3 currStartCoords;
     [SerializeField] Vector3 currEndCoords;
     [SerializeField] float currTimeAllocated;
     [SerializeField] float currHaltTime;
+    [SerializeField] int currSegment;
     [SerializeField] float requiredAvgSpeed;
 
     private Rigidbody rb;
@@ -48,11 +60,29 @@ public class TrainController : MonoBehaviour
 
     private float startTime;
     private float delayTime;
+    private List<int> path_taken;
+    private float segmentDistanceRemaining;
 
     private enum TrainState { Accelerate, Decelerate, Stop }
     private TrainState state;
 
-    private string csvFilePath = "/Users/harshit/Projects/RailGuard/DigitalTwin/Assets/speeds.csv";
+    private void CreateTriggerCollider()
+    {
+        // Create a child object with a trigger collider that matches the train's size
+        triggerObject = new GameObject("TrainTrigger");
+        triggerObject.transform.parent = this.transform;
+        triggerObject.transform.localPosition = Vector3.zero;
+        triggerObject.transform.localRotation = Quaternion.identity;
+
+        // Add a box collider as trigger
+        BoxCollider triggerCollider = triggerObject.AddComponent<BoxCollider>();
+        triggerCollider.size = this.transform.localScale;
+        triggerCollider.isTrigger = true;
+
+        // Add a TrainTriggerDetector component to handle trigger events
+        TrainTriggerDetector detector = triggerObject.AddComponent<TrainTriggerDetector>();
+        detector.Initialize(this);
+    }
 
     public void Initialize(TrainData trainData, int port)
     {
@@ -60,6 +90,11 @@ public class TrainController : MonoBehaviour
         endCoords = new Queue<Vector3>();
         timeAllocated = new Queue<float>();
         haltTime = new Queue<float>();
+        path_taken = new List<int>();
+
+        segments = new Queue<int>();
+        segmentTimes = new Queue<float>();
+        segmentHaltTimes = new Queue<float>();
 
         currStartCoords = new Vector3(trainData.start_coords[0] * 1000, YamlConfigManager.Config.train.height / 2, trainData.start_coords[1] * 1000);
         currEndCoords = new Vector3(trainData.end_coords[0] * 1000, YamlConfigManager.Config.train.height / 2, trainData.end_coords[1] * 1000);
@@ -78,19 +113,18 @@ public class TrainController : MonoBehaviour
         Thread udpThread = new Thread(StartUDPServer);
         udpThread.IsBackground = true;
         udpThread.Start();
+        CreateTriggerCollider();
+        TrainNumber = trainData.number;
+
+        setDirection(currStartCoords, currEndCoords);
+        processCoordsToSegments(currStartCoords, currEndCoords, currTimeAllocated, currHaltTime);
+        popSegment();
+        resetMetrics();
+    }
 
 
-        // NEW MODEL
-        int index = EnvironmentManager.isStation(new Vector3(currEndCoords.x, 0, currEndCoords.z));
-        if (index != -1)
-        {
-            endStation(index);
-        }
-        index = EnvironmentManager.isStation(new Vector3(currStartCoords.x, 0, currStartCoords.z));
-        if (index != -1)
-        {
-            initStartStation(index);
-        }
+    private void resetMetrics()
+    {
         float totalDistance = Vector3.Distance(currStartCoords, currEndCoords);
         requiredAvgSpeed = totalDistance / currTimeAllocated;
         direction = (currEndCoords - currStartCoords).normalized;
@@ -100,155 +134,204 @@ public class TrainController : MonoBehaviour
         requiredAvgSpeed = Vector3.Distance(currStartCoords, currEndCoords) / currTimeAllocated;
         state = TrainState.Accelerate;
         startTime = Timer.elapsedSeconds;
-        Debug.Log("Train initialized with start coords: " + currStartCoords + " and end coords: " + currEndCoords + " to complete in " + currTimeAllocated + " seconds and halt for " + currHaltTime + " seconds");
     }
 
-    private Queue<T> addToQueueFront<T>(Queue<T> queue, Queue<T> previousQueue)
+    private void setDirection(Vector3 start, Vector3 end)
     {
-        Queue<T> tempQueue = new Queue<T>(queue);
-        foreach (T item in previousQueue)
+        int segment_start = EnvironmentManager.getSegment(start);
+        int segment_end = EnvironmentManager.getSegment(end);
+        if (segment_start > segment_end)
         {
-            tempQueue.Enqueue(item);
+            directionIndex = 1;
+            Debug.Log($"Train {TrainNumber} is moving opposite");
         }
-        return tempQueue;
-    }
-
-    private void initStartStation(int index)
-    {
-        List<List<Vector3>> Routes = EnvironmentManager.getRoute(index, (currEndCoords - currStartCoords).normalized);
-
-        Queue<Vector3> tempStartCoords = new Queue<Vector3>();
-        Queue<Vector3> tempEndCoords = new Queue<Vector3>();
-        Queue<float> tempTimeAllocated = new Queue<float>();
-        Queue<float> tempHaltTime = new Queue<float>();
-
-        Vector3 startPoint = (Routes[1][0] + Routes[1][1]) / 2;
-        Vector3 endPoint = Routes[1][1];
-        float time = 2;
-        float hTime = 5;
-
-        tempStartCoords.Enqueue(Routes[2][0]);
-        tempEndCoords.Enqueue(Routes[2][1]);
-        tempTimeAllocated.Enqueue(5);
-        tempHaltTime.Enqueue(5);
-        tempStartCoords.Enqueue(Routes[2][1]);
-        tempEndCoords.Enqueue(currEndCoords);
-        tempTimeAllocated.Enqueue(currTimeAllocated);
-        tempHaltTime.Enqueue(currHaltTime);
-
-        currStartCoords = new Vector3(startPoint.x, height / 2 + 1, startPoint.z);
-        currEndCoords = new Vector3(endPoint.x, height / 2 + 1, endPoint.z);
-        currTimeAllocated = time;
-        currHaltTime = hTime;
-        startCoords = addToQueueFront(tempStartCoords, startCoords);
-        endCoords = addToQueueFront(tempEndCoords, endCoords);
-        timeAllocated = addToQueueFront(tempTimeAllocated, timeAllocated);
-        haltTime = addToQueueFront(tempHaltTime, haltTime);
-    }
-
-    private void endStation(int index)
-    {
-        List<List<Vector3>> Routes = EnvironmentManager.getRoute(index, (currEndCoords - currStartCoords).normalized);
-        Queue<Vector3> tempStartCoords = new Queue<Vector3>();
-        Queue<Vector3> tempEndCoords = new Queue<Vector3>();
-        Queue<float> tempTimeAllocated = new Queue<float>();
-        Queue<float> tempHaltTime = new Queue<float>();
-
-        int mid = Routes.Count / 2;
-        for (int i = 0; i < Routes.Count; i++)
+        else
         {
-            if (i == mid)
+            directionIndex = 0;
+            Debug.Log($"Train {TrainNumber} is moving along");
+        }
+    }
+
+    private void processCoordsToSegments(Vector3 start, Vector3 end, float time, float halt, bool skipFirst = false)
+    {
+        int segment_start = EnvironmentManager.getSegment(start);
+        int segment_end = EnvironmentManager.getSegment(end);
+        List<int> path = EnvironmentManager.getPath(segment_start, segment_end);
+        if (skipFirst)
+        {
+            path.RemoveAt(0);
+        }
+        if (path == null)
+        {
+            Debug.LogError("Path not found between segments " + segment_start + " and " + segment_end);
+            return;
+        }
+        List<float> pathTimes = EnvironmentManager.getPathTime(path, time);
+
+        for (int i = 0; i < path.Count; i++)
+        {
+            segments.Enqueue(path[i]);
+            segmentTimes.Enqueue(pathTimes[i]);
+            if (i == path.Count - 1)
             {
-                tempStartCoords.Enqueue(Routes[i][0]);
-                tempEndCoords.Enqueue((Routes[i][0] + Routes[i][1]) / 2);
-                tempTimeAllocated.Enqueue(5);
-                tempHaltTime.Enqueue(currHaltTime);
-                tempStartCoords.Enqueue((Routes[i][0] + Routes[i][1]) / 2);
-                tempEndCoords.Enqueue(Routes[i][1]);
-                tempTimeAllocated.Enqueue(5);
-                tempHaltTime.Enqueue(5);
+                segmentHaltTimes.Enqueue(halt);
             }
             else
             {
-                tempStartCoords.Enqueue(Routes[i][0]);
-                tempEndCoords.Enqueue(Routes[i][1]);
-                tempTimeAllocated.Enqueue(5);
-                tempHaltTime.Enqueue(5);
+                segmentHaltTimes.Enqueue(0);
             }
         }
-
-        currEndCoords = Routes[0][0];
-        currTimeAllocated = currTimeAllocated - 10;
-        currHaltTime = 5;
-        startCoords = addToQueueFront(tempStartCoords, startCoords);
-        endCoords = addToQueueFront(tempEndCoords, endCoords);
-        timeAllocated = addToQueueFront(tempTimeAllocated, timeAllocated);
-        haltTime = addToQueueFront(tempHaltTime, haltTime);
     }
 
-    private void startStation(int index)
+    private void popSegment()
     {
-        List<List<Vector3>> Routes = EnvironmentManager.getRoute(index, (currEndCoords - currStartCoords).normalized);
-        currStartCoords = new Vector3(Routes[Routes.Count - 1][1].x, height / 2 + 1, Routes[Routes.Count - 1][1].z);
-    }
+        currSegment = segments.Dequeue();
+        path_taken.Add(currSegment);
+        float time = segmentTimes.Dequeue();
+        float halt = segmentHaltTimes.Dequeue();
+        segmentDistanceRemaining = EnvironmentManager.getSegmentDistance(currSegment);
 
-    private void InitializeCSV()
-    {
-        using (StreamWriter writer = new StreamWriter(csvFilePath, false))
+        List<Track> tracks = EnvironmentManager.getSegmentTracks(currSegment, directionIndex);
+        if (tracks == null || tracks.Count == 0)
         {
-            writer.WriteLine("ElapsedTime,Speed");
+            Debug.LogError("No tracks found for segment " + currSegment);
+            return;
+        }
+        List<float> trackTimes = EnvironmentManager.getTrackTimes(tracks, time);
+        List<float> trackHaltTimes = new List<float>();
+
+        for (int i = 0; i < tracks.Count; i++)
+        {
+            trackHaltTimes.Add(0);
+        }
+
+        if (EnvironmentManager.isStationParallel[currSegment])
+        {
+            trackHaltTimes[1] = halt;
+        }
+        else
+        {
+            trackHaltTimes[^1] = halt;
+        }
+
+        for (int i = 0; i < tracks.Count; i++)
+        {
+            Track track = tracks[i];
+            Vector3 start = new Vector3(track.start[0], YamlConfigManager.Config.train.height / 2, track.start[1]);
+            Vector3 end = new Vector3(track.end[0], YamlConfigManager.Config.train.height / 2, track.end[1]);
+            startCoords.Enqueue(start);
+            endCoords.Enqueue(end);
+            timeAllocated.Enqueue(trackTimes[i]);
+            haltTime.Enqueue(trackHaltTimes[i]);
+        }
+
+        currStartCoords = startCoords.Dequeue();
+        currEndCoords = endCoords.Dequeue();
+        currTimeAllocated = timeAllocated.Dequeue();
+        currHaltTime = haltTime.Dequeue();
+    }
+    private void popCoords()
+    {
+        currStartCoords = startCoords.Dequeue();
+        currEndCoords = endCoords.Dequeue();
+        currTimeAllocated = timeAllocated.Dequeue();
+        currHaltTime = haltTime.Dequeue();
+    }
+
+    private void handleControlSignals(Control control)
+    {
+        List<int> tempSegments = new List<int>();
+        List<float> times = new List<float>();
+
+        while (segments.Count > 0)
+        {
+            tempSegments.Add(segments.Dequeue());
+            times.Add(segmentHaltTimes.Dequeue());
+        }
+        if (tempSegments.Count == 0)
+        {
+            Debug.Log("Control signal received but no segments to update.");
+            return;
+        }
+        tempSegments[0] = control.next_segment;
+        times[0] = control.next_halt_time;
+        Debug.Log($"Updated the control signal. New Segment order: {string.Join(", ", tempSegments)} and times: {string.Join(", ", times)}");
+        segments.Clear();
+        segmentHaltTimes.Clear();
+        for (int i = 0; i < tempSegments.Count; i++)
+        {
+            segments.Enqueue(tempSegments[i]);
+            segmentHaltTimes.Enqueue(times[i]);
         }
     }
 
-    private void WriteToCSV(float elapsedTime, float speed)
+    private bool IsJsonFullyMatching<T>(string json)
     {
-        using (StreamWriter writer = new StreamWriter(csvFilePath, true))
+        try
         {
-            writer.WriteLine($"{elapsedTime},{speed}");
+            var jsonFields = JObject.Parse(json).Properties();
+            var targetFields = typeof(T).GetFields(BindingFlags.Public | BindingFlags.Instance);
+            // Debug.Log("Target properties: " + string.Join(", ", targetFields.Select(p => p.Name)));
+            // Debug.Log("JSON properties: " + string.Join(", ", jsonFields.Select(p => p.Name)));
+
+            foreach (var field in targetFields)
+            {
+                if (!jsonFields.Any(p => p.Name.Equals(field.Name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return false;
+                }
+            }
+
+            foreach (var jsonField in jsonFields)
+            {
+                if (!targetFields.Any(p => p.Name.Equals(jsonField.Name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
-    }
-
-    private bool IsValidTrainData(TrainData data)
-    {
-        return data.start_coords != null && data.end_coords != null &&
-               data.start_coords.Count >= 2 && data.end_coords.Count >= 2;
-    }
-
-    private bool IsValidGPSData(GPSData data)
-    {
-        return data.coords != Vector3.zero || data.direction != Vector3.zero || data.speed != 0;
+        catch (Exception ex)
+        {
+            Debug.LogError("Error validating JSON structure: " + ex.Message);
+            return false;
+        }
     }
 
     private void HandleString(string message)
     {
+        // Debug.Log($"Received message: {message} | Is Valid GPSData: {IsJsonFullyMatching<GPSData>(message)} | Is Valid TrainData: {IsJsonFullyMatching<TrainData>(message)} | Is Valid Control: {IsJsonFullyMatching<Control>(message)}");
+        int index = IsJsonFullyMatching<GPSData>(message) ? 0 : (IsJsonFullyMatching<Control>(message) ? 1 : (IsJsonFullyMatching<TrainData>(message) ? 2 : -1));
         try
         {
-            TrainData trainData = JsonUtility.FromJson<TrainData>(message);
-            if (trainData != null && IsValidTrainData(trainData))
-            {
-                Debug.Log("Received TrainData for train #" + trainData.number);
-                startCoords.Enqueue(new Vector3(trainData.start_coords[0] * 1000, YamlConfigManager.Config.train.height / 2, trainData.start_coords[1] * 1000));
-                endCoords.Enqueue(new Vector3(trainData.end_coords[0] * 1000, YamlConfigManager.Config.train.height / 2, trainData.end_coords[1] * 1000));
-                timeAllocated.Enqueue(trainData.time_allocated);
-                haltTime.Enqueue(trainData.halt_time);
-            }
-        }
-        catch (Exception)
-        {
-            ;
-        }
 
-        try
-        {
-            GPSData gpsData = JsonUtility.FromJson<GPSData>(message);
-            if (gpsData != null && IsValidGPSData(gpsData))
+            switch (index)
             {
-                ;
+                case 0: break;
+                case 1:
+                    Control control = JsonConvert.DeserializeObject<Control>(message);
+                    handleControlSignals(control);
+                    break;
+                case 2:
+                    TrainData trainData = JsonConvert.DeserializeObject<TrainData>(message);
+                    Debug.Log("Received TrainData for train #" + trainData.number);
+                    Vector3 start_coords = new Vector3(trainData.start_coords[0] * 1000, YamlConfigManager.Config.train.height / 2, trainData.start_coords[1] * 1000);
+                    Vector3 end_coords = new Vector3(trainData.end_coords[0] * 1000, YamlConfigManager.Config.train.height / 2, trainData.end_coords[1] * 1000);
+                    processCoordsToSegments(start_coords, end_coords, trainData.time_allocated, trainData.halt_time, true);
+                    break;
+                default: Debug.LogError("Invalid message format: " + message); return;
             }
+        }
+        catch (JsonException ex)
+        {
+            Debug.LogError("Error deserializing message: " + ex.Message);
+            return;
         }
         catch (Exception ex)
         {
-            Debug.LogError("Error parsing JSON data: " + ex.Message + "\nRaw message: " + message);
+            Debug.LogError("Unexpected error: " + ex.Message);
+            return;
         }
     }
 
@@ -265,10 +348,11 @@ public class TrainController : MonoBehaviour
             GPSData gpsData = new GPSData
             {
                 coords = currCoords,
+                segment = currSegment,
+                next_segment = segments.Count > 0 ? segments.Peek() : 7,
                 speed = speed,
-                direction = direction,
-                delay = delayTime,
-                distanceRemaining = distanceRemaining,
+                direction = directionIndex,
+                distanceRemaining = EnvironmentManager.getRemainingDistance(currSegment, currCoords, currEndCoords),
             };
             string jsonString = JsonUtility.ToJson(gpsData);
             byte[] sendData = Encoding.UTF8.GetBytes(jsonString);
@@ -348,20 +432,9 @@ public class TrainController : MonoBehaviour
 
     private void AccelerateTrain(float elapsedTime, float distanceRemaining, float speed)
     {
-        // Debug.Log($"{distanceRemaining}: Train is accelerating");
         if (distanceRemaining > stoppingDistance + length / 4)
         {
             float maxForce = Mathf.Clamp(maxPower / (Mathf.Max(speed, 0) + Mathf.Epsilon), 0f, trainMass * maxAcceleration + frictionForceMagnitude);
-            // float maxForce = 0;
-            // if (speed < 0.1f)
-            // {
-            //     Debug.Log("Train is at rest, applying tractive effort: " + tractiveEffort + " and friction:" + frictionForceMagnitude);
-            //     maxForce = tractiveEffort;
-            // }
-            // else
-            // {
-            //     maxForce = maxPower / speed;
-            // }
             if (maxForce > frictionForceMagnitude)
             {
                 if (speed < Mathf.Min(maxSpeed, requiredAvgSpeed))
@@ -387,7 +460,6 @@ public class TrainController : MonoBehaviour
 
     private void DecelerateTrain(float elapsedTime, float distanceRemaining, float speed)
     {
-        // Debug.Log($"{distanceRemaining}: Train is decelerating");
         if (distanceRemaining > length / 4)
         {
             rb.AddForce(-direction * brakeForce, ForceMode.Force);
@@ -397,7 +469,6 @@ public class TrainController : MonoBehaviour
             state = TrainState.Stop;
             transform.position = currEndCoords;
             rb.linearVelocity = Vector3.zero;
-            // delayTime += elapsedTime - currTimeAllocated;
         }
     }
 
@@ -405,37 +476,47 @@ public class TrainController : MonoBehaviour
     {
         if (currHaltTime == 0f)
         {
-            if (haltTime.Count > 0 && timeAllocated.Count > 0 && startCoords.Count > 0 && endCoords.Count > 0)
+            if (haltTime.Count > 0)
             {
-                startTime = Timer.elapsedSeconds;
-                currHaltTime = haltTime.Dequeue();
-                // currTimeAllocated = Mathf.Max(timeAllocated.Dequeue() - delayTime, 1);
-                currTimeAllocated = timeAllocated.Dequeue();
-                currStartCoords = startCoords.Dequeue();
-                currEndCoords = endCoords.Dequeue();
-                int index = EnvironmentManager.isStation(new Vector3(currEndCoords.x, 0, currEndCoords.z));
-                if (index != -1)
-                {
-                    endStation(index);
-                }
-                index = EnvironmentManager.isStation(new Vector3(currStartCoords.x, 0, currStartCoords.z));
-                if (index != -1)
-                {
-                    startStation(index);
-                }
-                direction = (currEndCoords - currStartCoords).normalized;
-                transform.position = currStartCoords;
-                transform.rotation = Quaternion.LookRotation(direction);
-                prevCoords = transform.position;
-                requiredAvgSpeed = Vector3.Distance(currStartCoords, currEndCoords) / currTimeAllocated;
-                state = TrainState.Accelerate;
-                rb.linearVelocity = Vector3.zero;
-                Debug.Log("Train initialized with start coords: " + currStartCoords + " and end coords: " + currEndCoords + " to complete in " + currTimeAllocated + " seconds and halt for " + currHaltTime + " seconds");
+                popCoords();
+                resetMetrics();
+            }
+            else if (segments.Count > 0)
+            {
+                popSegment();
+                resetMetrics();
             }
             else
             {
+                printPathTaken();
+                PyReceiver receiver = FindFirstObjectByType<PyReceiver>();
+                if (receiver != null)
+                {
+                    receiver.RemoveTrain(TrainNumber);
+                }
                 Destroy(gameObject);
             }
+        }
+    }
+
+    private void printPathTaken()
+    {
+        string pathDetails = $"Path taken by {TrainNumber}: " + string.Join(" -> ", path_taken);
+        Debug.Log(pathDetails);
+    }
+
+    public void OnTrainIntersection(TrainController otherTrain)
+    {
+        if (otherTrain != null)
+        {
+            int thisTrainNumber = TrainNumber;
+            int otherTrainNumber = otherTrain.TrainNumber;
+
+            Vector3 thisPosition = transform.position;
+            Vector3 otherPosition = otherTrain.transform.position;
+
+            Debug.Log("=== COLLISION DETECTED ===");
+            Debug.Log($"Train Intersection: Train {thisTrainNumber} intersected with Train {otherTrainNumber} at position ({thisPosition.x}, {thisPosition.z})");
         }
     }
 
@@ -443,5 +524,31 @@ public class TrainController : MonoBehaviour
     {
         udpClient.Close();
         udpClient = null;
+    }
+}
+
+
+public class TrainTriggerDetector : MonoBehaviour
+{
+    private TrainController parentTrain;
+
+    public void Initialize(TrainController train)
+    {
+        parentTrain = train;
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        // Check if we collided with another train's trigger
+        if (other.gameObject.name == "TrainTrigger")
+        {
+            // Get the parent train controller of the other trigger
+            TrainController otherTrain = other.transform.parent.GetComponent<TrainController>();
+            if (otherTrain != null && otherTrain != parentTrain)
+            {
+                // Report the intersection to the parent train
+                parentTrain.OnTrainIntersection(otherTrain);
+            }
+        }
     }
 }

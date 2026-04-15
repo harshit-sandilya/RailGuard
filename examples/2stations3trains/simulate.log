@@ -1,0 +1,41 @@
+[Log Watcher] Log file opened.
+[CONTROLLER: UPDATE: UDP] Listening on 224.0.0.1:8081...
+[CONTROLLER: ENVIRONMENT] Initialised with 3 trains.
+[unity] Launching Unity...
+[Log Watcher] Watching for marker: '== UNITY_PLAYMODE_START =='
+[Log Watcher] Found (forward): '== UNITY_PLAYMODE_START ==' in line: == UNITY_PLAYMODE_START ==
+[Log Watcher] Watching for marker: '== SERVER STARTED =='
+[Log Watcher] Found (forward): '== SERVER STARTED ==' in line: == SERVER STARTED ==
+[unity] Unity is running...
+[ROUTER] Starting the router...
+[ROUTER: UPDATE] Sending InitialData to Unity...
+[ROUTER: UPDATE] Sent InitialData to Unity. Waiting for Unity to get ready...
+[ROUTER: UPDATE] Unity is ready.
+[TIMER] Timer started.
+[Log Watcher] Watching for marker: '== COMPLETED =='
+[ROUTER: TRAIN] Sent data: {"number":12245,"start_coords":[0.0,4.0],"end_coords":[1.0,5.0],"time_allocated":282.0,"halt_time":78.0} for train 12245
+[ROUTER: TRAIN] Sent data: {"number":98765,"start_coords":[5.0,9.0],"end_coords":[3.0,7.0],"time_allocated":282.0,"halt_time":120.0} for train 98765
+[ROUTER: TRAIN] Sent data: {"number":12245,"start_coords":[1.0,5.0],"end_coords":[5.0,9.0],"time_allocated":1140.0,"halt_time":0.0} for train 12245
+[ROUTER: TRAIN] Sent data: {"number":54321,"start_coords":[0.0,4.0],"end_coords":[3.0,7.0],"time_allocated":424.0,"halt_time":60.0} for train 54321
+[ROUTER: TRAIN] Sent data: {"number":98765,"start_coords":[3.0,7.0],"end_coords":[0.0,4.0],"time_allocated":425.0,"halt_time":0.0} for train 98765
+[ROUTER: TRAIN] Sent data: {"number":54321,"start_coords":[3.0,7.0],"end_coords":[5.0,9.0],"time_allocated":343.0,"halt_time":0.0} for train 54321
+[ROUTER] All trains completed. Sending finish signal...
+[ROUTER: UPDATE] Sent finish signal to Unity.
+[Log Watcher] Found (forward): '== COMPLETED ==' in line: == COMPLETED ==
+[TIMER] Timer stopped.
+[ROUTER: UPDATE] Stopped the UpdateChannel.
+[TRAIN SENDER] Train 12245 has completed its journey.
+[TRAIN SENDER] Stopped TrainSender for train 12245
+[TRAIN SENDER] Train 54321 has completed its journey.
+[TRAIN SENDER] Stopped TrainSender for train 54321
+[TRAIN SENDER] Train 98765 has completed its journey.
+[TRAIN SENDER] Stopped TrainSender for train 98765
+[ROUTER] Stopped the router
+[unity] Unity is shutting down...
+[unity] Unity has been shut down.
+[Log Watcher] Found 6 collision(s) in the log file.
+================================================================
+Number of trains: 3
+Number of stations: 2
+Number of collisions: 3
+================================================================

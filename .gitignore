@@ -12,6 +12,7 @@ __pycache__/
 dist/
 build/
 *.log
+!examples/**/*.log
 
 # Unity
 [Ll]ibrary/
@@ -81,3 +82,5 @@ Icon
 .ropeproject
 .vscode/
 .ruff_cache/
+.env
+ray_results/

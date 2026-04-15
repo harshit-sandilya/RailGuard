@@ -1,13 +1,11 @@
 from pydantic import BaseModel
 
-class Entities(BaseModel):
-    stations: int
-    trains: int
 
 class Station(BaseModel):
     length: int
     width: int
     height: int
+
 
 class Time(BaseModel):
     seconds: float
@@ -38,9 +36,8 @@ class PID(BaseModel):
 class Control(BaseModel):
     pid: PID
 
+
 class Config(BaseModel):
-    data_dir: str
-    entities: Entities
     station: Station
     time: Time
     physics: Physics
